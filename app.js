@@ -12,6 +12,8 @@ const resultEl = $('result');
 const receiptCard = $('receipt-card');
 const statementCard = $('statement-card');
 let lastStatementAddress = null;
+let cachedPriceMap = null;
+let todayKey = '';
 
 function showLoading(show) {
   loadingEl.classList.toggle('hidden', !show);
@@ -105,7 +107,7 @@ async function fetchAddressTransactions(address) {
   return res.json();
 }
 
-const HTX_BASE = 'https://api.huobi.pro';
+const KUCION_BASE = 'https://api.kucoin.com';
 
 function formatUSD(amount) {
   return '$' + Number(amount).toLocaleString('en-US', {
@@ -123,17 +125,34 @@ function getDateKey(ms) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-async function fetchPriceRange() {
+async function fetchPriceMap() {
   try {
-    const res = await fetch(`${HTX_BASE}/market/history/kline?symbol=kasusdt&period=1day&size=2000`);
+    const now = Math.floor(Date.now() / 1000);
+    const res = await fetch(`${KUCION_BASE}/api/v1/market/candles?symbol=KAS-USDT&type=1day&startAt=1660000000&endAt=${now}`);
     if (!res.ok) return null;
     const json = await res.json();
-    if (json.status !== 'ok' || !json.data) return null;
+    if (json.code !== '200000' || !json.data) return null;
     const map = {};
+    const today = getDateKey(Date.now());
     json.data.forEach(candle => {
-      map[getDateKey(candle.id * 1000)] = candle.close;
+      const key = getDateKey(candle[0] * 1000);
+      if (key !== today) {
+        map[key] = parseFloat(candle[2]);
+      }
     });
     return map;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCurrentPrice() {
+  try {
+    const res = await fetch(`${KUCION_BASE}/api/v1/market/orderbook/level1?symbol=KAS-USDT`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.code !== '200000' || !json.data) return null;
+    return parseFloat(json.data.price);
   } catch {
     return null;
   }
@@ -266,7 +285,7 @@ function renderReceipt(tx, price) {
   `;
 }
 
-function renderAddressStatement(txs, address, balance, priceMap) {
+function renderAddressStatement(txs, address, balance, priceMap, todayPrice, todayKey) {
   const sorted = [...txs].sort((a, b) => b.block_time - a.block_time);
 
   let totalReceived = 0;
@@ -279,7 +298,8 @@ function renderAddressStatement(txs, address, balance, priceMap) {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
     const amount = getTxAmount(tx, address, direction);
-    const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+    const dateKey = getDateKey(tx.block_time);
+    const price = priceMap ? (priceMap[dateKey] ?? (dateKey === todayKey ? todayPrice : null)) : null;
     const usdAmount = price ? getKasAmount(amount) * price : null;
 
     if (direction === 'received') {
@@ -371,12 +391,12 @@ async function showStatement() {
   }
   showLoading(true);
   try {
-    const [balance, txs] = await Promise.all([
+    const [balance, txs, todayPrice] = await Promise.all([
       fetchAddressBalance(lastStatementAddress),
-      fetchAddressTransactions(lastStatementAddress)
+      fetchAddressTransactions(lastStatementAddress),
+      fetchCurrentPrice()
     ]);
-    const priceMap = await fetchPriceRange();
-    renderAddressStatement(txs, lastStatementAddress, balance, priceMap);
+    renderAddressStatement(txs, lastStatementAddress, balance, cachedPriceMap, todayPrice, todayKey);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -387,9 +407,12 @@ async function showStatement() {
 async function showTxDetail(txId) {
   showLoading(true);
   try {
-    const tx = await fetchTransaction(txId);
-    const priceMap = await fetchPriceRange();
-    const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+    const [tx, todayPrice] = await Promise.all([
+      fetchTransaction(txId),
+      fetchCurrentPrice()
+    ]);
+    const dateKey = getDateKey(tx.block_time);
+    const price = cachedPriceMap ? (cachedPriceMap[dateKey] ?? (dateKey === todayKey ? todayPrice : null)) : null;
     statementCard.classList.add('hidden');
     receiptCard.classList.remove('hidden');
     renderReceipt(tx, price);
@@ -434,19 +457,20 @@ async function handleGenerate() {
   try {
     if (TX_HASH_REGEX.test(raw)) {
       lastStatementAddress = null;
-      const [tx] = await Promise.all([
-        fetchTransaction(raw)
+      const [tx, todayPrice] = await Promise.all([
+        fetchTransaction(raw),
+        fetchCurrentPrice()
       ]);
-      const priceMap = await fetchPriceRange();
-      const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+      const dateKey = getDateKey(tx.block_time);
+      const price = cachedPriceMap ? (cachedPriceMap[dateKey] ?? (dateKey === todayKey ? todayPrice : null)) : null;
       renderReceipt(tx, price);
     } else if (ADDRESS_REGEX.test(raw)) {
-      const [balance, txs, priceMap] = await Promise.all([
+      const [balance, txs, todayPrice] = await Promise.all([
         fetchAddressBalance(raw),
         fetchAddressTransactions(raw),
-        fetchPriceRange()
+        fetchCurrentPrice()
       ]);
-      renderAddressStatement(txs, raw, balance, priceMap);
+      renderAddressStatement(txs, raw, balance, cachedPriceMap, todayPrice, todayKey);
     } else {
       showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
       return;
@@ -464,6 +488,11 @@ function handleInput() {
   input.classList.remove('error');
   hideError();
 }
+
+fetchPriceMap().then(map => {
+  cachedPriceMap = map;
+  todayKey = getDateKey(Date.now());
+});
 
 receiptCard.addEventListener('click', (e) => {
   const btn = e.target.closest('.copy-btn');
