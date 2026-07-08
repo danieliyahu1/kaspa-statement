@@ -174,10 +174,6 @@ function renderReceipt(tx) {
         <span class="meta-label">Block</span>
         <span class="meta-value">#${formatNumber(blueScore)}</span>
       </div>
-      <div class="meta-row">
-        <span class="meta-label">Mass</span>
-        <span class="meta-value">${formatNumber(tx.mass)}</span>
-      </div>
     </div>
 
     <div class="receipt-section">
