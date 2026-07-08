@@ -1,5 +1,6 @@
 const API_BASE = 'https://api.kaspa.org';
 const TX_HASH_REGEX = /^[a-f0-9]{64}$/;
+const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
 
 const $ = (id) => document.getElementById(id);
 
@@ -9,6 +10,8 @@ const loadingEl = $('loading');
 const errorEl = $('error');
 const resultEl = $('result');
 const receiptCard = $('receipt-card');
+const statementCard = $('statement-card');
+let lastStatementAddress = null;
 
 function showLoading(show) {
   loadingEl.classList.toggle('hidden', !show);
@@ -78,6 +81,62 @@ async function fetchTransaction(txId) {
     throw new Error('The Kaspa network is currently unavailable. Please try again.');
   }
   return res.json();
+}
+
+async function fetchAddressBalance(address) {
+  const res = await fetch(`${API_BASE}/addresses/${address}/balance`);
+  if (!res.ok) {
+    throw new Error('Could not fetch address balance.');
+  }
+  const data = await res.json();
+  return data.balance;
+}
+
+async function fetchAddressTransactions(address) {
+  const params = new URLSearchParams({
+    limit: '50',
+    resolve_previous_outpoints: 'light'
+  });
+  const res = await fetch(`${API_BASE}/addresses/${address}/full-transactions?${params}`);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
+    throw new Error('The Kaspa network is currently unavailable. Please try again.');
+  }
+  return res.json();
+}
+
+function getTxDirection(tx, address) {
+  const isSender = tx.inputs && tx.inputs.some(i => i.previous_outpoint_address === address);
+  const isReceiver = tx.outputs && tx.outputs.some(o => o.script_public_key_address === address);
+  if (isSender && isReceiver) return 'self';
+  if (isSender) return 'sent';
+  return 'received';
+}
+
+function getCounterparty(tx, address, direction) {
+  if (direction === 'received') {
+    const sender = tx.inputs && tx.inputs.find(i => i.previous_outpoint_address && i.previous_outpoint_address !== address);
+    return sender ? sender.previous_outpoint_address : 'Coinbase';
+  }
+  if (direction === 'sent') {
+    const receiver = tx.outputs && tx.outputs.find(o => o.script_public_key_address !== address);
+    return receiver ? receiver.script_public_key_address : 'Unknown';
+  }
+  return address;
+}
+
+function getTxAmount(tx, address, direction) {
+  if (direction === 'received') {
+    return tx.outputs
+      .filter(o => o.script_public_key_address === address)
+      .reduce((sum, o) => sum + Number(o.amount), 0);
+  }
+  if (direction === 'sent') {
+    return tx.outputs
+      .filter(o => o.script_public_key_address !== address)
+      .reduce((sum, o) => sum + Number(o.amount), 0);
+  }
+  return Number(tx.outputs[0].amount);
 }
 
 function renderReceipt(tx) {
@@ -166,10 +225,126 @@ function renderReceipt(tx) {
     </div>
 
     <div class="receipt-actions">
-      <button class="btn-print" onclick="window.print()">Print Receipt</button>
+      ${lastStatementAddress ? '<button class="btn-back" onclick="showStatement()">Back to Statement</button>' : ''}
       <button class="btn-new" onclick="resetForm()">New Receipt</button>
     </div>
   `;
+}
+
+function renderAddressStatement(txs, address, balance) {
+  const sorted = [...txs].sort((a, b) => b.block_time - a.block_time);
+
+  let totalReceived = 0;
+  let totalSent = 0;
+  let txRows = '';
+
+  sorted.forEach((tx) => {
+    const direction = getTxDirection(tx, address);
+    const counterparty = getCounterparty(tx, address, direction);
+    const amount = getTxAmount(tx, address, direction);
+
+    if (direction === 'received') totalReceived += amount;
+    else if (direction === 'sent') totalSent += amount;
+
+    const isSent = direction === 'sent';
+    const symbol = isSent ? '&#8599;' : '&#8600;';
+    const label = isSent ? 'Sent' : (direction === 'self' ? 'Self' : 'Received');
+    const amtClass = isSent ? 'amt-sent' : 'amt-received';
+
+    const counterShort = counterparty.length > 30
+      ? counterparty.slice(0, 16) + '…' + counterparty.slice(-6)
+      : counterparty;
+
+    const status = tx.is_accepted
+      ? '<span class="tx-status confirmed">Confirmed</span>'
+      : '<span class="tx-status unconfirmed">Pending</span>';
+
+    txRows += `
+      <div class="tx-row" onclick="showTxDetail('${tx.transaction_id}')">
+        <div class="tx-left">
+          <span class="tx-date">${formatDate(tx.block_time)}</span>
+          <span class="tx-counter">${escapeHtml(counterShort)}</span>
+        </div>
+        <div class="tx-right">
+          <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
+          <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
+          ${status}
+        </div>
+      </div>
+    `;
+  });
+
+  const net = totalReceived - totalSent;
+
+  statementCard.innerHTML = `
+    <div class="statement-header">
+      <h2>Kaspa Statement</h2>
+      <div class="statement-address">${shortenHash(address, 16)}</div>
+      <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card received">
+        <span class="summary-label">Received</span>
+        <span class="summary-value">${formatKAS(totalReceived)}</span>
+      </div>
+      <div class="summary-card sent">
+        <span class="summary-label">Sent</span>
+        <span class="summary-value">${formatKAS(totalSent)}</span>
+      </div>
+      <div class="summary-card ${net >= 0 ? 'net-positive' : 'net-negative'}">
+        <span class="summary-label">Net</span>
+        <span class="summary-value">${net >= 0 ? '+' : ''}${formatKAS(net)}</span>
+      </div>
+    </div>
+
+    <div class="tx-list">
+      <div class="tx-list-header">
+        <span>${sorted.length} transaction${sorted.length !== 1 ? 's' : ''}</span>
+      </div>
+      ${txRows || '<div class="tx-empty">No transactions found.</div>'}
+    </div>
+
+    <div class="receipt-actions">
+      <button class="btn-new" onclick="resetForm()">New Search</button>
+    </div>
+  `;
+
+  lastStatementAddress = address;
+  receiptCard.classList.add('hidden');
+  statementCard.classList.remove('hidden');
+}
+
+async function showStatement() {
+  if (!lastStatementAddress) {
+    resetForm();
+    return;
+  }
+  showLoading(true);
+  try {
+    const [balance, txs] = await Promise.all([
+      fetchAddressBalance(lastStatementAddress),
+      fetchAddressTransactions(lastStatementAddress)
+    ]);
+    renderAddressStatement(txs, lastStatementAddress, balance);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function showTxDetail(txId) {
+  showLoading(true);
+  try {
+    const tx = await fetchTransaction(txId);
+    statementCard.classList.add('hidden');
+    renderReceipt(tx);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
 }
 
 function escapeHtml(str) {
@@ -180,6 +355,9 @@ function resetForm() {
   input.value = '';
   input.focus();
   resultEl.classList.add('hidden');
+  receiptCard.classList.add('hidden');
+  statementCard.classList.add('hidden');
+  lastStatementAddress = null;
   hideError();
 }
 
@@ -187,17 +365,12 @@ async function handleGenerate() {
   const raw = input.value.trim().toLowerCase();
   hideError();
   resultEl.classList.add('hidden');
+  receiptCard.classList.add('hidden');
+  statementCard.classList.add('hidden');
 
   if (!raw) {
     input.classList.add('error');
-    showError('Please enter a transaction hash.');
-    input.focus();
-    return;
-  }
-
-  if (!TX_HASH_REGEX.test(raw)) {
-    input.classList.add('error');
-    showError('Transaction hash must be exactly 64 lowercase hexadecimal characters (0-9, a-f).');
+    showError('Please enter a transaction hash or wallet address.');
     input.focus();
     return;
   }
@@ -206,8 +379,20 @@ async function handleGenerate() {
   showLoading(true);
 
   try {
-    const tx = await fetchTransaction(raw);
-    renderReceipt(tx);
+    if (TX_HASH_REGEX.test(raw)) {
+      lastStatementAddress = null;
+      const tx = await fetchTransaction(raw);
+      renderReceipt(tx);
+    } else if (ADDRESS_REGEX.test(raw)) {
+      const [balance, txs] = await Promise.all([
+        fetchAddressBalance(raw),
+        fetchAddressTransactions(raw)
+      ]);
+      renderAddressStatement(txs, raw, balance);
+    } else {
+      showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
+      return;
+    }
     resultEl.classList.remove('hidden');
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
