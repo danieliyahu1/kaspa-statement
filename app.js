@@ -105,6 +105,60 @@ async function fetchAddressTransactions(address) {
   return res.json();
 }
 
+const CG_BASE = 'https://api.coingecko.com/api/v3';
+
+function formatUSD(amount) {
+  return '$' + Number(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function getKasAmount(sompi) {
+  return Number(sompi) / 1e8;
+}
+
+async function fetchPriceForDate(timestampMs) {
+  const d = new Date(timestampMs);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  try {
+    const res = await fetch(`${CG_BASE}/coins/kaspa/history?date=${day}-${month}-${year}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.market_data?.current_price?.usd ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchPriceRange(fromMs, toMs) {
+  try {
+    const res = await fetch(`${CG_BASE}/coins/kaspa/market_chart/range?vs_currency=usd&from=${Math.floor(fromMs / 1000)}&to=${Math.floor(toMs / 1000)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.prices || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildPriceMap(pricesList, txs) {
+  const map = {};
+  txs.forEach(tx => {
+    const txTime = tx.block_time;
+    let closest = pricesList[0];
+    for (const p of pricesList) {
+      if (Math.abs(p[0] - txTime) < Math.abs(closest[0] - txTime)) {
+        closest = p;
+      }
+    }
+    map[tx.transaction_id] = closest[1];
+  });
+  return map;
+}
+
 function getTxDirection(tx, address) {
   const isSender = tx.inputs && tx.inputs.some(i => i.previous_outpoint_address === address);
   const isReceiver = tx.outputs && tx.outputs.some(o => o.script_public_key_address === address);
@@ -139,7 +193,7 @@ function getTxAmount(tx, address, direction) {
   return Number(tx.outputs[0].amount);
 }
 
-function renderReceipt(tx) {
+function renderReceipt(tx, price) {
   const accepted = tx.is_accepted;
   const blockTime = tx.block_time;
   const blueScore = tx.accepting_block_blue_score;
@@ -151,6 +205,8 @@ function renderReceipt(tx) {
   )];
 
   const totalSompi = outputs.reduce((sum, o) => sum + Number(o.amount), 0);
+  const totalKas = getKasAmount(totalSompi);
+  const usdTotal = price ? totalKas * price : null;
 
   receiptCard.innerHTML = `
     <div class="receipt-header">
@@ -203,7 +259,10 @@ function renderReceipt(tx) {
 
     <div class="receipt-total">
       <span class="total-label">Total</span>
-      <span class="total-amount">${formatKAS(totalSompi)}</span>
+      <div class="total-values">
+        <span class="total-amount">${formatKAS(totalSompi)}</span>
+        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : ''}
+      </div>
     </div>
 
     <div class="receipt-footer">
@@ -227,20 +286,29 @@ function renderReceipt(tx) {
   `;
 }
 
-function renderAddressStatement(txs, address, balance) {
+function renderAddressStatement(txs, address, balance, priceMap) {
   const sorted = [...txs].sort((a, b) => b.block_time - a.block_time);
 
   let totalReceived = 0;
   let totalSent = 0;
+  let usdReceived = 0;
+  let usdSent = 0;
   let txRows = '';
 
   sorted.forEach((tx) => {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
     const amount = getTxAmount(tx, address, direction);
+    const price = priceMap ? priceMap[tx.transaction_id] : null;
+    const usdAmount = price ? getKasAmount(amount) * price : null;
 
-    if (direction === 'received') totalReceived += amount;
-    else if (direction === 'sent') totalSent += amount;
+    if (direction === 'received') {
+      totalReceived += amount;
+      if (usdAmount) usdReceived += usdAmount;
+    } else if (direction === 'sent') {
+      totalSent += amount;
+      if (usdAmount) usdSent += usdAmount;
+    }
 
     const isSent = direction === 'sent';
     const symbol = isSent ? '&#8599;' : '&#8600;';
@@ -264,6 +332,7 @@ function renderAddressStatement(txs, address, balance) {
         <div class="tx-right">
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
+          ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : ''}
           ${status}
         </div>
       </div>
@@ -271,6 +340,7 @@ function renderAddressStatement(txs, address, balance) {
   });
 
   const net = totalReceived - totalSent;
+  const netUsd = usdReceived - usdSent;
 
   statementCard.innerHTML = `
     <div class="statement-header">
@@ -283,14 +353,17 @@ function renderAddressStatement(txs, address, balance) {
       <div class="summary-card received">
         <span class="summary-label">Received</span>
         <span class="summary-value">${formatKAS(totalReceived)}</span>
+        ${usdReceived ? `<span class="summary-usd">${formatUSD(usdReceived)}</span>` : ''}
       </div>
       <div class="summary-card sent">
         <span class="summary-label">Sent</span>
         <span class="summary-value">${formatKAS(totalSent)}</span>
+        ${usdSent ? `<span class="summary-usd">${formatUSD(usdSent)}</span>` : ''}
       </div>
       <div class="summary-card ${net >= 0 ? 'net-positive' : 'net-negative'}">
         <span class="summary-label">Net</span>
         <span class="summary-value">${net >= 0 ? '+' : ''}${formatKAS(net)}</span>
+        ${netUsd ? `<span class="summary-usd">${netUsd >= 0 ? '+' : ''}${formatUSD(netUsd)}</span>` : ''}
       </div>
     </div>
 
@@ -322,7 +395,10 @@ async function showStatement() {
       fetchAddressBalance(lastStatementAddress),
       fetchAddressTransactions(lastStatementAddress)
     ]);
-    renderAddressStatement(txs, lastStatementAddress, balance);
+    const timestamps = txs.map(t => t.block_time);
+    const pricesList = timestamps.length ? await fetchPriceRange(Math.min(...timestamps), Math.max(...timestamps)) : null;
+    const priceMap = pricesList ? buildPriceMap(pricesList, txs) : null;
+    renderAddressStatement(txs, lastStatementAddress, balance, priceMap);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -334,9 +410,10 @@ async function showTxDetail(txId) {
   showLoading(true);
   try {
     const tx = await fetchTransaction(txId);
+    const [price] = await Promise.all([fetchPriceForDate(tx.block_time)]);
     statementCard.classList.add('hidden');
     receiptCard.classList.remove('hidden');
-    renderReceipt(tx);
+    renderReceipt(tx, price);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -378,14 +455,22 @@ async function handleGenerate() {
   try {
     if (TX_HASH_REGEX.test(raw)) {
       lastStatementAddress = null;
-      const tx = await fetchTransaction(raw);
-      renderReceipt(tx);
+      const [tx] = await Promise.all([
+        fetchTransaction(raw)
+      ]);
+      const price = await fetchPriceForDate(tx.block_time);
+      renderReceipt(tx, price);
     } else if (ADDRESS_REGEX.test(raw)) {
       const [balance, txs] = await Promise.all([
         fetchAddressBalance(raw),
         fetchAddressTransactions(raw)
       ]);
-      renderAddressStatement(txs, raw, balance);
+      const timestamps = txs.map(t => t.block_time);
+      const minTime = Math.min(...timestamps);
+      const maxTime = Math.max(...timestamps);
+      const pricesList = await fetchPriceRange(minTime, maxTime);
+      const priceMap = pricesList ? buildPriceMap(pricesList, txs) : null;
+      renderAddressStatement(txs, raw, balance, priceMap);
     } else {
       showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
       return;
