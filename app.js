@@ -339,6 +339,7 @@ async function showTxDetail(txId) {
   try {
     const tx = await fetchTransaction(txId);
     statementCard.classList.add('hidden');
+    receiptCard.classList.remove('hidden');
     renderReceipt(tx);
   } catch (err) {
     showError(err.message);
