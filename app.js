@@ -133,15 +133,47 @@ async function fetchPriceForDate(timestampMs) {
   }
 }
 
+const CG_MAX_DAYS = 90;
+
 async function fetchPriceRange(fromMs, toMs) {
+  const fromS = Math.floor(fromMs / 1000);
+  const toS = Math.floor(toMs / 1000);
+  if (toS - fromS > CG_MAX_DAYS * 86400) return null;
   try {
-    const res = await fetch(`${CG_BASE}/coins/kaspa/market_chart/range?vs_currency=usd&from=${Math.floor(fromMs / 1000)}&to=${Math.floor(toMs / 1000)}`);
+    const res = await fetch(`${CG_BASE}/coins/kaspa/market_chart/range?vs_currency=usd&from=${fromS}&to=${toS}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.prices || null;
   } catch {
     return null;
   }
+}
+
+async function fetchPricesForTxs(txs) {
+  const timestamps = txs.map(t => t.block_time);
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const pricesList = await fetchPriceRange(minTime, maxTime);
+  if (pricesList) return buildPriceMap(pricesList, txs);
+  const uniqueDates = [...new Set(txs.map(t => {
+    const d = new Date(t.block_time);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }))];
+  const datePriceMap = {};
+  for (const dateKey of uniqueDates) {
+    const tx = txs.find(t => {
+      const d = new Date(t.block_time);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === dateKey;
+    });
+    datePriceMap[dateKey] = await fetchPriceForDate(tx.block_time);
+  }
+  const map = {};
+  txs.forEach(tx => {
+    const d = new Date(tx.block_time);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    map[tx.transaction_id] = datePriceMap[key];
+  });
+  return map;
 }
 
 function buildPriceMap(pricesList, txs) {
@@ -395,9 +427,7 @@ async function showStatement() {
       fetchAddressBalance(lastStatementAddress),
       fetchAddressTransactions(lastStatementAddress)
     ]);
-    const timestamps = txs.map(t => t.block_time);
-    const pricesList = timestamps.length ? await fetchPriceRange(Math.min(...timestamps), Math.max(...timestamps)) : null;
-    const priceMap = pricesList ? buildPriceMap(pricesList, txs) : null;
+    const priceMap = txs.length ? await fetchPricesForTxs(txs) : null;
     renderAddressStatement(txs, lastStatementAddress, balance, priceMap);
   } catch (err) {
     showError(err.message);
@@ -465,11 +495,7 @@ async function handleGenerate() {
         fetchAddressBalance(raw),
         fetchAddressTransactions(raw)
       ]);
-      const timestamps = txs.map(t => t.block_time);
-      const minTime = Math.min(...timestamps);
-      const maxTime = Math.max(...timestamps);
-      const pricesList = await fetchPriceRange(minTime, maxTime);
-      const priceMap = pricesList ? buildPriceMap(pricesList, txs) : null;
+      const priceMap = await fetchPricesForTxs(txs);
       renderAddressStatement(txs, raw, balance, priceMap);
     } else {
       showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
