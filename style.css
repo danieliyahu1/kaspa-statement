@@ -433,6 +433,14 @@ label {
   color: #d2d2d7 !important;
 }
 
+.receipt-note {
+  font-size: 11px;
+  color: #aeaeb2;
+  text-align: right;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 .summary-note {
   font-size: 11px;
   color: #aeaeb2;

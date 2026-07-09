@@ -147,10 +147,14 @@ async function fetchPriceMap() {
     if (json.retCode !== 0 || !json.result?.list) return null;
     const map = {};
     const todayKey = getDateKey(Date.now());
+    let earliestTs = Infinity;
     json.result.list.forEach(candle => {
-      const key = getDateKey(parseInt(candle[0]));
+      const ts = parseInt(candle[0]);
+      const key = getDateKey(ts);
       map[key] = key === todayKey ? parseFloat(candle[1]) : parseFloat(candle[4]);
+      if (ts < earliestTs) earliestTs = ts;
     });
+    if (earliestTs !== Infinity) map._earliest = earliestTs;
     return map;
   } catch {
     return null;
@@ -282,7 +286,7 @@ function renderReceipt(tx, price) {
       <span class="total-label">Total</span>
       <div class="total-values">
         <span class="total-amount">${formatKAS(totalSompi)}</span>
-        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : '<span class="total-usd na">$N/A</span>'}
+        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : `<span class="total-usd na">$N/A</span>${priceMap?._earliest ? `<div class="receipt-note">No price data prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}`}
       </div>
     </div>
 
@@ -345,7 +349,7 @@ function renderNetSummary(txs, address) {
           ${hasUsd ? `<div class="summary-usd">≈ ${formatUSD(netUsd)} USD</div>` : ''}
         </div>
       </div>
-      ${hasUsd && hadMissingPrice ? '<div class="summary-note">* Price data unavailable for some transactions</div>' : ''}
+      ${hasUsd && hadMissingPrice ? `<div class="summary-note">No price data prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
 }
