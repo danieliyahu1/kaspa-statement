@@ -78,7 +78,7 @@ function formatKAS(sompi) {
   const kas = Number(sompi) / 1e8;
   return kas.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 8
+    maximumFractionDigits: 2
   }) + ' KAS';
 }
 

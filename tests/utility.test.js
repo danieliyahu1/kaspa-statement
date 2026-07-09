@@ -21,17 +21,17 @@ describe('formatKAS', () => {
   it('converts sompi to KAS with correct formatting', () => {
     expect(formatKAS(100000000)).toBe('1.00 KAS');
     expect(formatKAS(50000000)).toBe('0.50 KAS');
-    expect(formatKAS(123456789)).toBe('1.23456789 KAS');
+    expect(formatKAS(123456789)).toBe('1.23 KAS');
     expect(formatKAS(0)).toBe('0.00 KAS');
   });
 
   it('handles large amounts', () => {
     expect(formatKAS(100000000000)).toBe('1,000.00 KAS');
-    expect(formatKAS(12345678901234)).toBe('123,456.78901234 KAS');
+    expect(formatKAS(12345678901234)).toBe('123,456.79 KAS');
   });
 
-  it('has at least 2 fraction digits', () => {
-    expect(formatKAS(1)).toBe('0.00000001 KAS');
+  it('has exactly 2 fraction digits', () => {
+    expect(formatKAS(1)).toBe('0.00 KAS');
     expect(formatKAS(100000000)).toBe('1.00 KAS');
   });
 });
