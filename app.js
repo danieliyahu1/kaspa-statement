@@ -211,6 +211,7 @@ async function fetchAllAddressTxs(address, fromMs, toMs) {
 
 function renderReceipt(tx, price) {
   receiptTx = { tx, price };
+  receiptCard.classList.remove('hidden');
   const accepted = tx.is_accepted;
   const blockTime = tx.block_time;
   const inputs = tx.inputs || [];
