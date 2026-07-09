@@ -641,10 +641,10 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
           <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
-    : hasUsd && Object.keys(txGains || {}).length > 0
+    : hasUsd
       ? (() => {
           let totalRealized = 0;
-          for (const txId of Object.keys(txGains)) {
+          for (const txId of Object.keys(txGains || {})) {
             totalRealized += txGains[txId].gain;
           }
           return `<div class="summary-divider"></div>
