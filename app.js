@@ -255,7 +255,7 @@ function renderReceipt(tx, price) {
       ${fromAddresses.length
         ? fromAddresses.map(addr => `
             <div class="address-block">
-              <span class="address">${shortenHash(addr, 16)}</span>
+              <span class="address">${shortenHash(addr, 12)}</span>
               <button class="copy-btn" data-copy="${escapeHtml(addr)}">Copy</button>
             </div>
           `).join('')
@@ -269,7 +269,7 @@ function renderReceipt(tx, price) {
         ${outputs.map(o => `
           <div class="output-row">
             <span class="output-address">
-              ${shortenHash(o.script_public_key_address, 16)}
+              ${shortenHash(o.script_public_key_address, 12)}
               <button class="copy-btn" data-copy="${escapeHtml(o.script_public_key_address)}">Copy</button>
             </span>
             <span class="output-amount">${formatKAS(o.amount)}</span>
@@ -287,7 +287,7 @@ function renderReceipt(tx, price) {
     </div>
 
     <div class="receipt-ref">
-      ${shortenHash(tx.transaction_id, 16)}
+      ${shortenHash(tx.transaction_id, 12)}
       <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
     </div>
 
@@ -431,7 +431,7 @@ function renderStatement() {
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
       <div class="statement-address">
-        ${shortenHash(address, 16)}
+        ${shortenHash(address, 12)}
         <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
       </div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
