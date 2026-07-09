@@ -13,9 +13,13 @@ A pure client-side single-page app. No backend, no database, no build step — j
 - **CSV Export** — Download transaction history as a CSV file.
 - **Dark Mode** — Full dark theme with Kaspa brand colors.
 
+## Live Website
+
+**[kaspa-receipts.onrender.com](https://kaspa-receipts.onrender.com/)** — hosted on Render's global CDN. No installation required.
+
 ## Usage
 
-Open `index.html` in a browser, serve it with any static file server, or use the hosted version at **[kaspa-receipts.onrender.com](https://kaspa-receipts.onrender.com/)**.
+Open `index.html` in a browser or serve it with any static file server.
 
 ### Single Transaction
 
