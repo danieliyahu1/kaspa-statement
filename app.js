@@ -33,6 +33,7 @@ const dateRangeSection = $('date-range-section');
 let receiptTx = null;
 let statement = null;
 let priceMap = null;
+let priceMapPromise = null;
 
 function showLoading(show, text) {
   log(`${show ? 'Showing' : 'Hiding'} loading state${text ? ': ' + text : ''}`);
@@ -626,7 +627,7 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
-          ${gainInfo ? `<span class="tx-gain ${gainInfo.gain >= 0 ? 'gain-positive' : 'gain-negative'}">${gainInfo.gain >= 0 ? 'Gain: ' + formatUSD(gainInfo.gain) : 'Loss: ' + formatUSD(Math.abs(gainInfo.gain))}</span>` : ''}
+          ${gainInfo && gainInfo.gain >= 0 ? `<span class="tx-gain gain-positive">Gain: ${formatUSD(gainInfo.gain)}</span>` : ''}
           ${status}
         </div>
       </div>
@@ -694,6 +695,11 @@ function refreshUSD() {
     const price = priceMap[getDateKey(receiptTx.tx.block_time)] ?? null;
     renderReceipt(receiptTx.tx, price);
   } else if (statement) {
+    if (statement.allTxs && !statement._gainsComputed) {
+      log('refreshUSD: re-computing FIFO gains with price data');
+      statement.txGains = buildFIFOQueue(statement.allTxs, statement.address, priceMap);
+      statement._gainsComputed = true;
+    }
     renderStatement();
   }
 }
@@ -739,6 +745,12 @@ async function handleGenerate() {
   showLoading(true);
 
   try {
+    if (priceMapPromise) {
+      log('Waiting for price map to load...');
+      await priceMapPromise;
+      log('Price map ready:', !!priceMap);
+    }
+
     if (TX_HASH_REGEX.test(raw)) {
       log('Input matched TX hash pattern');
       receiptTx = null;
@@ -774,7 +786,7 @@ async function handleGenerate() {
       const txs = allTxs.filter(tx => tx.block_time >= fromMs && tx.block_time <= toMs);
       txs.reverse();
       log('Display txs in range:', txs.length);
-      statement = { address: raw, balance: bal, txs, allTxs, txGains, fromDate, toDate, page: 0 };
+      statement = { address: raw, balance: bal, txs, allTxs, txGains, fromDate, toDate, page: 0, _gainsComputed: true };
       renderStatement();
     } else {
       warn('Input did not match TX hash or address pattern');
@@ -857,10 +869,11 @@ function initEventListeners() {
 
 log('App starting...');
 setDefaultDateRange();
-fetchPriceMap().then(map => {
+priceMapPromise = fetchPriceMap().then(map => {
   log('Price map initialization complete. Available:', !!map);
   priceMap = map;
   refreshUSD();
+  return map;
 });
 initEventListeners();
 log('App initialized.');
