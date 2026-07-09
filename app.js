@@ -255,7 +255,7 @@ function renderReceipt(tx, price) {
       ${fromAddresses.length
         ? fromAddresses.map(addr => `
             <div class="address-block">
-              <span class="address">${escapeHtml(addr)}</span>
+              <span class="address">${shortenHash(addr, 16)}</span>
               <button class="copy-btn" data-copy="${escapeHtml(addr)}">Copy</button>
             </div>
           `).join('')
@@ -269,7 +269,7 @@ function renderReceipt(tx, price) {
         ${outputs.map(o => `
           <div class="output-row">
             <span class="output-address">
-              ${escapeHtml(o.script_public_key_address)}
+              ${shortenHash(o.script_public_key_address, 16)}
               <button class="copy-btn" data-copy="${escapeHtml(o.script_public_key_address)}">Copy</button>
             </span>
             <span class="output-amount">${formatKAS(o.amount)}</span>
