@@ -356,8 +356,16 @@ function buildFIFOQueue(txs, address, priceMap) {
     }
   }
 
+  let remainingCostBasis = 0;
+  let remainingAmountSompi = 0;
+  for (const lot of lots) {
+    remainingCostBasis += getKasAmount(lot.amount) * lot.costBasisPerKas;
+    remainingAmountSompi += lot.amount;
+  }
+
   log('FIFO queue built. Lots remaining:', lots.length, 'txs with gains:', Object.keys(txGains).length);
-  return txGains;
+  log('FIFO queue: remaining cost basis: $' + remainingCostBasis.toFixed(2), 'remaining KAS:', getKasAmount(remainingAmountSompi));
+  return { txGains, remainingCostBasis, remainingAmountSompi };
 }
 
 function renderReceipt(tx, price) {
@@ -443,11 +451,10 @@ function renderReceipt(tx, price) {
   `;
 }
 
-function renderProfitSummary(txs, address, txGains) {
+function renderProfitSummary(txs, address, txGains, fifoSummary) {
   if (!txs.length) return '';
 
   let receivedSompi = 0, sentSompi = 0;
-  let totalGain = 0, totalSaleValue = 0, totalCostBasis = 0;
   let hadMissingPrice = false;
 
   txs.forEach(tx => {
@@ -460,23 +467,18 @@ function renderProfitSummary(txs, address, txGains) {
       receivedSompi += amount;
     } else if (direction === 'sent') {
       sentSompi += amount;
-      const g = txGains ? txGains[tx.transaction_id] : null;
-      if (g) {
-        totalGain += g.gain;
-        totalSaleValue += g.saleValue;
-        totalCostBasis += g.costBasis;
-      } else {
-        log('ProfitSummary: send tx', tx.transaction_id?.slice(0, 12), 'has no gain entry — txGains keys:', Object.keys(txGains || {}).length);
-      }
     } else if (direction === 'self') {
       receivedSompi += amount;
       sentSompi += amount;
     }
   });
-  log('ProfitSummary: received:', getKasAmount(receivedSompi), 'KAS, sent:', getKasAmount(sentSompi), 'KAS, totalGain: $' + totalGain, 'hasUsd:', !!priceMap);
+  log('ProfitSummary: received:', getKasAmount(receivedSompi), 'KAS, sent:', getKasAmount(sentSompi), 'KAS, hasUsd:', !!priceMap);
 
   const netSompi = receivedSompi - sentSompi;
   const hasUsd = priceMap !== null;
+  const { remainingCostBasis = 0, remainingAmountSompi = 0 } = fifoSummary || {};
+  const remainingKas = remainingAmountSompi ? getKasAmount(remainingAmountSompi) : 0;
+  const showCostBasis = hasUsd && (remainingCostBasis > 0 || remainingAmountSompi > 0);
 
   return `
     <div class="net-summary">
@@ -499,24 +501,13 @@ function renderProfitSummary(txs, address, txGains) {
           <div class="summary-kas">${formatKAS(netSompi)}</div>
         </div>
       </div>
-      ${hasUsd ? `
+      ${showCostBasis ? `
       <div class="summary-divider"></div>
-      <div class="summary-row ${totalGain >= 0 ? 'summary-profit' : 'summary-loss'}">
-        <span class="summary-label">Profit</span>
+      <div class="summary-row summary-cost-basis">
+        <span class="summary-label">Cost Basis <span class="summary-sub">(carries forward)</span></span>
         <div class="summary-values">
-          <div class="summary-usd profit-value">${totalGain >= 0 ? formatUSD(totalGain) : '-' + formatUSD(Math.abs(totalGain))}</div>
-        </div>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Cost Basis</span>
-        <div class="summary-values">
-          <div class="summary-usd">${formatUSD(totalCostBasis)}</div>
-        </div>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Sale Value</span>
-        <div class="summary-values">
-          <div class="summary-usd">${formatUSD(totalSaleValue)}</div>
+          <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
+          ${remainingKas > 0 ? `<div class="summary-avg">${formatKAS(remainingAmountSompi)} at ${formatUSD(remainingCostBasis / remainingKas)} avg</div>` : ''}
         </div>
       </div>` : ''}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
@@ -610,7 +601,7 @@ function renderStatement() {
   const pageTxs = txs.slice(startIdx, startIdx + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(txs.length / PAGE_SIZE));
 
-  const summaryHtml = renderProfitSummary(txs, address, statement.txGains);
+  const summaryHtml = renderProfitSummary(txs, address, statement.txGains, statement.fifoSummary);
 
   let txRows = '';
   pageTxs.forEach((tx) => {
@@ -715,7 +706,9 @@ function refreshUSD() {
   } else if (statement) {
     if (statement.allTxs && !statement._gainsComputed) {
       log('refreshUSD: re-computing FIFO gains with price data');
-      statement.txGains = buildFIFOQueue(statement.allTxs, statement.address, priceMap);
+      const fifoResult = buildFIFOQueue(statement.allTxs, statement.address, priceMap);
+      statement.txGains = fifoResult.txGains;
+      statement.fifoSummary = { remainingCostBasis: fifoResult.remainingCostBasis, remainingAmountSompi: fifoResult.remainingAmountSompi };
       statement._gainsComputed = true;
     }
     renderStatement();
@@ -800,11 +793,16 @@ async function handleGenerate() {
         fetchAllTxsFromGenesis(raw)
       ]);
       log('All txs from genesis:', allTxs.length);
-      const txGains = buildFIFOQueue(allTxs, raw, priceMap);
+      const fifoResult = buildFIFOQueue(allTxs, raw, priceMap);
       const txs = allTxs.filter(tx => tx.block_time >= fromMs && tx.block_time <= toMs);
       txs.reverse();
       log('Display txs in range:', txs.length);
-      statement = { address: raw, balance: bal, txs, allTxs, txGains, fromDate, toDate, page: 0, _gainsComputed: true };
+      statement = {
+        address: raw, balance: bal, txs, allTxs,
+        txGains: fifoResult.txGains,
+        fifoSummary: { remainingCostBasis: fifoResult.remainingCostBasis, remainingAmountSompi: fifoResult.remainingAmountSompi },
+        fromDate, toDate, page: 0, _gainsComputed: true
+      };
       renderStatement();
     } else {
       warn('Input did not match TX hash or address pattern');

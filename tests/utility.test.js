@@ -359,10 +359,13 @@ describe('buildFIFOQueue', () => {
     ];
     const map = { '2024-0-1': 1, '2024-0-2': 2 };
     const result = buildFIFOQueue(txs, address, map);
-    expect(result.send1).toBeDefined();
-    expect(result.send1.gain).toBe(50);      // 50 KAS * ($2 - $1)
-    expect(result.send1.saleValue).toBe(100); // 50 KAS * $2
-    expect(result.send1.costBasis).toBe(50);  // 50 KAS * $1
+    expect(result.txGains.send1).toBeDefined();
+    expect(result.txGains.send1.gain).toBe(50);      // 50 KAS * ($2 - $1)
+    expect(result.txGains.send1.saleValue).toBe(100); // 50 KAS * $2
+    expect(result.txGains.send1.costBasis).toBe(50);  // 50 KAS * $1
+    // remaining: 50 KAS at $1 from unconsumed lot portion
+    expect(result.remainingCostBasis).toBe(50);
+    expect(result.remainingAmountSompi).toBe(5000000000);
   });
 
   it('consumes from multiple lots in FIFO order', () => {
@@ -395,9 +398,12 @@ describe('buildFIFOQueue', () => {
     const map = { '2024-0-1': 1, '2024-0-2': 2, '2024-0-3': 3 };
     const result = buildFIFOQueue(txs, address, map);
     // 100 KAS from lot 1 at $3-1 = $2 → $200, 50 KAS from lot 2 at $3-2 = $1 → $50
-    expect(result.send1.gain).toBeCloseTo(250);
-    expect(result.send1.saleValue).toBe(450); // 150 * $3
-    expect(result.send1.costBasis).toBe(200); // 100*$1 + 50*$2
+    expect(result.txGains.send1.gain).toBeCloseTo(250);
+    expect(result.txGains.send1.saleValue).toBe(450); // 150 * $3
+    expect(result.txGains.send1.costBasis).toBe(200); // 100*$1 + 50*$2
+    // remaining: 50 KAS at $2 from lot 2
+    expect(result.remainingCostBasis).toBe(100);
+    expect(result.remainingAmountSompi).toBe(5000000000);
   });
 
   it('skips self transactions', () => {
@@ -429,9 +435,12 @@ describe('buildFIFOQueue', () => {
     ];
     const map = { '2024-0-1': 1, '2024-0-2': 2, '2024-0-3': 3 };
     const result = buildFIFOQueue(txs, address, map);
-    expect(result.self1).toBeUndefined();
+    expect(result.txGains.self1).toBeUndefined();
     // recv1 lot was after self1, so send1 consumes from recv1
-    expect(result.send1.gain).toBe(50); // 50 * ($3 - $2)
+    expect(result.txGains.send1.gain).toBe(50); // 50 * ($3 - $2)
+    // remaining: 50 KAS at $2 from recv1
+    expect(result.remainingCostBasis).toBe(100);
+    expect(result.remainingAmountSompi).toBe(5000000000);
   });
 
   it('returns zero gain when no price data', () => {
@@ -455,9 +464,12 @@ describe('buildFIFOQueue', () => {
       },
     ];
     const result = buildFIFOQueue(txs, address, null);
-    expect(result.send1.gain).toBe(0);
-    expect(result.send1.saleValue).toBe(0);
-    expect(result.send1.costBasis).toBe(0);
+    expect(result.txGains.send1.gain).toBe(0);
+    expect(result.txGains.send1.saleValue).toBe(0);
+    expect(result.txGains.send1.costBasis).toBe(0);
+    // no price data means zero cost basis
+    expect(result.remainingCostBasis).toBe(0);
+    expect(result.remainingAmountSompi).toBe(5000000000);
   });
 });
 

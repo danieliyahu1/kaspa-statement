@@ -482,6 +482,28 @@ label {
   font-size: 15px;
 }
 
+.summary-cost-basis .summary-usd {
+  color: #1d1d1f;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.cost-basis-value {
+  font-size: 15px;
+}
+
+.summary-avg {
+  font-size: 11px;
+  color: #aeaeb2;
+  margin-top: 1px;
+}
+
+.summary-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: #aeaeb2;
+}
+
 .summary-loss .summary-usd {
   color: #d4380d;
   font-weight: 700;
