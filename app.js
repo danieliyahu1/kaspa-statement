@@ -217,8 +217,8 @@ function renderReceipt(tx, price) {
   receiptCard.innerHTML = `
       <div class="receipt-header">
       <h2>Kaspa Receipt</h2>
-      <div class="receipt-id">
-        <span class="receipt-tx">${tx.transaction_id}</span>
+      <div class="receipt-id">${tx.transaction_id}</div>
+      <div class="receipt-status">
         <span class="status-badge ${accepted ? 'accepted' : 'pending'}">
           ${accepted ? '<span class="check">&#10003;</span> Confirmed' : '<span class="check">&#9679;</span> Pending'}
         </span>

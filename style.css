@@ -270,18 +270,15 @@ label {
 }
 
 .receipt-header .receipt-id {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-}
-
-.receipt-header .receipt-id .receipt-tx {
   font-size: 11px;
   color: #515154;
+  margin-top: 4px;
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   word-break: break-all;
+}
+
+.receipt-status {
+  margin-top: 8px;
 }
 
 
