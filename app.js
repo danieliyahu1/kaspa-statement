@@ -507,6 +507,7 @@ function renderReceipt(tx, price) {
 
     <div class="receipt-actions">
       ${statement ? '<button class="btn-back" id="back-btn">Back to History</button>' : ''}
+      <button class="btn-export" id="export-receipt-btn">Export</button>
       <button class="btn-new" id="new-receipt-btn">New Receipt</button>
     </div>
   `;
@@ -657,6 +658,50 @@ function exportCSV() {
   document.body.removeChild(link);
   URL.revokeObjectURL(link.href);
   log('CSV exported:', link.download);
+}
+
+function exportReceiptCSV() {
+  if (!receiptTx) { warn('exportReceiptCSV called but no receipt'); return; }
+  const { tx, price } = receiptTx;
+  const accepted = tx.is_accepted;
+  const blockTime = tx.block_time;
+  const inputs = tx.inputs || [];
+  const outputs = tx.outputs || [];
+  const fromAddresses = [...new Set(inputs.map(i => i.previous_outpoint_address).filter(Boolean))];
+  const fromStr = fromAddresses.length ? fromAddresses.join('; ') : 'Coinbase';
+  const status = accepted ? 'Confirmed' : 'Pending';
+
+  const headers = ['Date', 'Status', 'From', 'To', 'Amount (KAS)', 'USD Value', 'Transaction ID'];
+  const rows = outputs.map(o => {
+    const kas = getKasAmount(o.amount);
+    const usd = price ? formatUSD(kas * price) : '';
+    return [
+      formatShortDate(blockTime),
+      status,
+      fromStr,
+      o.script_public_key_address,
+      kas,
+      usd,
+      tx.transaction_id
+    ];
+  });
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => {
+      const str = String(cell);
+      return (str.includes(',') || str.includes('"') || str.includes('\n')) ? `"${str.replace(/"/g, '""')}"` : str;
+    }).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `kaspa-tx-${tx.transaction_id.slice(0, 12)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+  log('Receipt CSV exported:', link.download);
 }
 
 function buildPagination(current, total) {
@@ -941,6 +986,11 @@ function initEventListeners() {
     if (e.target.closest('#new-receipt-btn')) {
       log('New receipt clicked');
       resetForm();
+    }
+
+    if (e.target.closest('#export-receipt-btn')) {
+      log('Export receipt clicked');
+      exportReceiptCSV();
     }
   });
 

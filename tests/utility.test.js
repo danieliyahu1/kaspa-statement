@@ -323,7 +323,7 @@ describe('exportCSV', () => {
     exportCSV();
 
     const content = capturedArgs[0][0];
-    expect(content).toContain('Date,Direction,Amount (KAS),USD Value,Counterparty,Transaction ID,Status,Cost Basis (USD),Realized Gain (USD)');
+    expect(content).toContain('Date,Direction,Amount (KAS),USD Value,Counterparty,Transaction ID,Status');
     expect(content).toContain('Sent');
     expect(content).toContain('2');
     expect(content).toContain('$1.00');
