@@ -904,28 +904,6 @@ label {
   margin-bottom: 8px;
 }
 
-/* ── Skeleton / Empty State ── */
-
-.skeleton-card {
-  background: #fefef7;
-  border-radius: 16px;
-  padding: 32px 28px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
-  border-top: 3px solid var(--kaspa-teal);
-}
-
-.sk-block {
-  background: linear-gradient(90deg, #e2e2da 25%, #efefe8 50%, #e2e2da 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 4px;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
 /* ── Progress Bar ── */
 
 .progress-bar-container {

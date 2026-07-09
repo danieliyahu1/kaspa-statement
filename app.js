@@ -118,11 +118,6 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function hideSkeleton() {
-  const sk = $('skeleton');
-  if (sk) sk.classList.add('hidden');
-}
-
 function showProgress(current, total) {
   const bar = $('progress-bar');
   const container = $('progress-container');
@@ -919,7 +914,6 @@ function resetForm() {
 async function handleGenerate() {
   const raw = input.value.trim().toLowerCase();
   log('handleGenerate triggered with input:', raw);
-  hideSkeleton();
   hideError();
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
