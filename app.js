@@ -454,6 +454,12 @@ function renderReceipt(tx, price) {
     inputs.map(i => i.previous_outpoint_address).filter(Boolean)
   )];
 
+  const externalOutputs = outputs
+    .filter(o => !fromAddresses.includes(o.script_public_key_address))
+    .sort((a, b) => Number(b.amount) - Number(a.amount));
+  const changeOutputs = outputs.filter(o => fromAddresses.includes(o.script_public_key_address));
+  const sortedOutputs = [...externalOutputs, ...changeOutputs];
+
   const totalSompi = outputs.reduce((sum, o) => sum + Number(o.amount), 0);
   const totalKas = getKasAmount(totalSompi);
   const usdTotal = price ? totalKas * price : null;
@@ -492,7 +498,7 @@ function renderReceipt(tx, price) {
     <div class="receipt-section">
       <div class="section-label">To</div>
       <div class="output-list">
-        ${outputs.map(o => `
+        ${sortedOutputs.map(o => `
           <div class="output-row">
             <span class="output-address">
               ${shortenHash(o.script_public_key_address, 12)}
