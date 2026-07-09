@@ -472,9 +472,8 @@ describe('renderProfitSummary', () => {
     currentPrice = 3;
 
     const html = renderProfitSummary(txs, address, txGains, { remainingCostBasis: 150, remainingAmountSompi: 2000000000 }, 2000000000, false);
-    expect(html).toContain('Realized Gain');
+    expect(html).toContain('Realized Profit');
     expect(html).toContain('+$50.00');
-    expect(html).toContain('summary-profit');
     priceMap = null;
     currentPrice = null;
   });

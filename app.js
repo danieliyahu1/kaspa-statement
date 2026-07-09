@@ -647,12 +647,11 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
           for (const txId of Object.keys(txGains)) {
             totalRealized += txGains[txId].gain;
           }
-          const isProfit = totalRealized >= 0;
           return `<div class="summary-divider"></div>
-            <div class="summary-row ${isProfit ? 'summary-profit' : 'summary-loss'}">
-              <span class="summary-label">${isProfit ? 'Realized Gain' : 'Realized Loss'}</span>
+            <div class="summary-row summary-profit">
+              <span class="summary-label">Realized Profit</span>
               <div class="summary-values">
-                <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(totalRealized)}</div>
+                <div class="summary-usd profit-value">${totalRealized >= 0 ? '+' : ''}${formatUSD(totalRealized)}</div>
               </div>
             </div>`;
         })()
