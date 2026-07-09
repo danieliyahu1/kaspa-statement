@@ -630,6 +630,31 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
                 <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
               </div>
             </div>`;
+      })()
+    : '';
+
+  const realizedGainRow = loadingMore && hasUsd
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-profit">
+        <span class="summary-label">Realized Gain</span>
+        <div class="summary-values">
+          <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+        </div>
+      </div>`
+    : hasUsd && Object.keys(txGains || {}).length > 0
+      ? (() => {
+          let totalRealized = 0;
+          for (const txId of Object.keys(txGains)) {
+            totalRealized += txGains[txId].gain;
+          }
+          const isProfit = totalRealized >= 0;
+          return `<div class="summary-divider"></div>
+            <div class="summary-row ${isProfit ? 'summary-profit' : 'summary-loss'}">
+              <span class="summary-label">${isProfit ? 'Realized Gain' : 'Realized Loss'}</span>
+              <div class="summary-values">
+                <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(totalRealized)}</div>
+              </div>
+            </div>`;
         })()
       : '';
 
@@ -652,6 +677,7 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
       ${avgPriceRow}
       ${currentValueRow}
       ${profitRow}
+      ${realizedGainRow}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
@@ -662,7 +688,7 @@ function exportCSV() {
   if (statement._loadingMore) { warn('exportCSV called while data still loading'); return; }
   const { address, txs } = statement;
 
-  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status'];
+  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Cost Basis (USD)', 'Realized Gain (USD)', 'Counterparty', 'Transaction ID', 'Status'];
   const rows = txs.map(tx => {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
@@ -671,11 +697,16 @@ function exportCSV() {
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     const usd = price ? formatUSD(kas * price) : '';
     const status = tx.is_accepted ? 'Confirmed' : 'Pending';
+    const gain = (statement.txGains || {})[tx.transaction_id];
+    const costBasis = gain ? formatUSD(gain.costBasis) : '';
+    const realizedGain = gain ? `${gain.gain >= 0 ? '+' : ''}${formatUSD(gain.gain)}` : '';
     return [
       formatShortDate(tx.block_time),
       direction === 'sent' ? 'Sent' : (direction === 'self' ? 'Self' : 'Received'),
       kas,
       usd,
+      costBasis,
+      realizedGain,
       counterparty,
       tx.transaction_id,
       status
@@ -808,6 +839,8 @@ function renderStatement() {
       ? '<span class="tx-status unconfirmed">Pending</span>'
       : '';
 
+    const gainData = isSent && !statement._loadingMore && (statement.txGains || {})[tx.transaction_id] || null;
+
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
@@ -818,6 +851,7 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
+          ${gainData ? `<span class="tx-gain ${gainData.gain >= 0 ? 'tx-gain-profit' : 'tx-gain-loss'}">${gainData.gain >= 0 ? '+' : ''}${formatUSD(gainData.gain)}</span>` : ''}
           ${status}
         </div>
       </div>

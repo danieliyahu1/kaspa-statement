@@ -112,11 +112,40 @@ describe('renderStatement', () => {
         ],
       },
     ];
-    statement = { address, balance: '100000000', txs, page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0, txGains: {} };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Sent');
     expect(card.innerHTML).toContain('2.00 KAS');
+    statement = null;
+  });
+
+  it('shows realized gain on sent tx row', () => {
+    const txs = [
+      {
+        transaction_id: 'gain1',
+        is_accepted: true,
+        block_time: 1704067200000,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '5000000000' }],
+      },
+      {
+        transaction_id: 'sent1',
+        is_accepted: true,
+        block_time: 1704153600000,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '1000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '2000000000' },
+        ],
+      },
+    ];
+    const txGains = { sent1: { gain: 50, saleValue: 100, costBasis: 50 } };
+    statement = { address, balance: '2000000000', txs, page: 0, txGains, _loadingMore: false };
+    renderStatement();
+    const card = document.getElementById('statement-card');
+    expect(card.innerHTML).toContain('+$50.00');
+    expect(card.innerHTML).toContain('tx-gain-profit');
     statement = null;
   });
 
@@ -416,6 +445,38 @@ describe('renderProfitSummary', () => {
 
     const html = renderProfitSummary(txs, address, {});
     expect(html).toContain('5.00 KAS'); // both received and sent
+  });
+
+  it('shows realized gain row when txGains has data', () => {
+    const txs = [
+      {
+        transaction_id: 'recv1',
+        is_accepted: true,
+        block_time: 1704067200000,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '5000000000' }],
+      },
+      {
+        transaction_id: 'send1',
+        is_accepted: true,
+        block_time: 1704153600000,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '1000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '2000000000' },
+        ],
+      },
+    ];
+    const txGains = { send1: { gain: 50, saleValue: 100, costBasis: 50 } };
+    priceMap = { '2024-0-1': 1, '2024-0-2': 2 };
+    currentPrice = 3;
+
+    const html = renderProfitSummary(txs, address, txGains, { remainingCostBasis: 150, remainingAmountSompi: 2000000000 }, 2000000000, false);
+    expect(html).toContain('Realized Gain');
+    expect(html).toContain('+$50.00');
+    expect(html).toContain('summary-profit');
+    priceMap = null;
+    currentPrice = null;
   });
 });
 

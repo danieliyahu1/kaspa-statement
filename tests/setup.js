@@ -37,7 +37,8 @@ let appCode = readFileSync(resolve(__dirname, '..', 'app.js'), 'utf-8');
 appCode = appCode
   .replace('let receiptTx = null;', 'globalThis.receiptTx = null;')
   .replace('let statement = null;', 'globalThis.statement = null;')
-  .replace('let priceMap = null;', 'globalThis.priceMap = null;');
+  .replace('let priceMap = null;', 'globalThis.priceMap = null;')
+  .replace('let currentPrice = null;', 'globalThis.currentPrice = null;');
 
 // Evaluate app.js in global scope so its functions are available
 (0, eval)(appCode);
