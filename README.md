@@ -19,8 +19,6 @@ A pure client-side single-page app. No backend, no database, no build step — j
 
 ## Usage
 
-Open `index.html` in a browser or serve it with any static file server.
-
 ### Single Transaction
 
 1. Paste a 64-character transaction hash (hex) into the input.
@@ -33,6 +31,20 @@ Open `index.html` in a browser or serve it with any static file server.
 2. Select a date range (defaults to the last 12 months).
 3. Click **Look Up**.
 4. Browse the paginated transaction list. Click any row to drill into its receipt.
+
+## Run Locally
+
+No build step required. Serve the project directory with any static file server:
+
+```bash
+npx serve .
+# or
+python -m http.server
+# or
+npx http-server
+```
+
+Then open the address shown in your terminal.
 
 ## Run Tests
 
