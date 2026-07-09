@@ -593,16 +593,14 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
       : '';
 
   const currentValueRow = loadingMore && balance > 0
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-current-value">
+    ? `<div class="summary-row summary-current-value">
         <span class="summary-label">Current Value</span>
         <div class="summary-values">
           <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
     : currentPrice !== null && balance > 0
-      ? `<div class="summary-divider"></div>
-        <div class="summary-row summary-current-value">
+      ? `<div class="summary-row summary-current-value">
           <span class="summary-label">Current Value</span>
           <div class="summary-values">
             <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
@@ -611,11 +609,10 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
       : '';
 
   const profitRow = loadingMore && hasUsd && balance > 0
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-current-value">
-        <span class="summary-label">Profit / Loss</span>
+    ? `<div class="summary-row summary-profit">
+        <span class="summary-label">Unrealized Profit</span>
         <div class="summary-values">
-          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
     : currentPrice !== null && balance > 0 && showCostBasis
@@ -623,20 +620,19 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
           const currentValue = getKasAmount(balance) * currentPrice;
           const profit = currentValue - remainingCostBasis;
           const isProfit = profit >= 0;
-          return `<div class="summary-divider"></div>
-            <div class="summary-row summary-profit">
+          return `<div class="summary-row summary-profit">
               <span class="summary-label">Unrealized Profit</span>
               <div class="summary-values">
                 <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
               </div>
             </div>`;
-      })()
-    : '';
+        })()
+      : '';
 
   const realizedGainRow = loadingMore && hasUsd
     ? `<div class="summary-divider"></div>
       <div class="summary-row summary-profit">
-        <span class="summary-label">Realized Gain</span>
+        <span class="summary-label">Realized Profit</span>
         <div class="summary-values">
           <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
@@ -673,10 +669,10 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
         </div>
       </div>
       ${costBasisRow}
-      ${avgPriceRow}
       ${currentValueRow}
       ${profitRow}
       ${realizedGainRow}
+      ${avgPriceRow}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
