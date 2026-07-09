@@ -772,6 +772,7 @@ async function handleGenerate() {
       log('All txs from genesis:', allTxs.length);
       const txGains = buildFIFOQueue(allTxs, raw, priceMap);
       const txs = allTxs.filter(tx => tx.block_time >= fromMs && tx.block_time <= toMs);
+      txs.reverse();
       log('Display txs in range:', txs.length);
       statement = { address: raw, balance: bal, txs, allTxs, txGains, fromDate, toDate, page: 0 };
       renderStatement();
