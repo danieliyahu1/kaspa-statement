@@ -2,7 +2,6 @@ const API_BASE = 'https://api.kaspa.org';
 const TX_HASH_REGEX = /^[a-f0-9]{64}$/;
 const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
 const PAGE_SIZE = 50;
-const CHUNK_SIZE = 500;
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,7 +16,7 @@ let lastStatementAddress = null;
 let lastReceiptTx = null;
 let lastStatementData = null;
 let cachedPriceMap = null;
-let allTxs = [];
+let pageCache = {};
 let totalTxCount = 0;
 let currentPage = 0;
 let balance = 0;
@@ -108,17 +107,14 @@ async function fetchAddressTxCount(address) {
   return data.total;
 }
 
-async function fetchAddressTxPage(address, before = null) {
-  let url = `${API_BASE}/addresses/${address}/full-transactions-page?limit=${CHUNK_SIZE}&resolve_previous_outpoints=light`;
-  if (before) url += `&before=${before}`;
+async function fetchAddressTxs(address, offset = 0) {
+  const url = `${API_BASE}/addresses/${address}/full-transactions?limit=${PAGE_SIZE}&offset=${offset}&resolve_previous_outpoints=light`;
   const res = await fetch(url);
   if (!res.ok) {
     if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
     throw new Error('The Kaspa network is currently unavailable. Please try again.');
   }
-  const txs = await res.json();
-  const nextBefore = res.headers.get('X-Next-Page-Before');
-  return { txs, nextBefore: nextBefore ? parseInt(nextBefore) : null };
+  return res.json();
 }
 
 const BYBIT_BASE = 'https://api.bybit.com';
@@ -295,9 +291,7 @@ function renderReceipt(tx, price) {
 }
 
 function renderAddressStatement(address, bal, page, priceMap) {
-  const start = page * PAGE_SIZE;
-  const end = Math.min(start + PAGE_SIZE, allTxs.length);
-  const pageTxs = allTxs.slice(start, end);
+  const pageTxs = pageCache[page] || [];
   const totalPages = Math.ceil(totalTxCount / PAGE_SIZE);
   let txRows = '';
 
@@ -337,10 +331,6 @@ function renderAddressStatement(address, bal, page, priceMap) {
     `;
   });
 
-  const loadingEl = allTxs.length < totalTxCount
-    ? `<span class="loading-txs">Loading ${formatNumber(allTxs.length)} of ${formatNumber(totalTxCount)} transactions…</span>`
-    : '';
-
   statementCard.innerHTML = `
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
@@ -351,7 +341,6 @@ function renderAddressStatement(address, bal, page, priceMap) {
     <div class="tx-list">
       <div class="tx-list-header">
         <span>${formatNumber(totalTxCount)} transaction${totalTxCount !== 1 ? 's' : ''}</span>
-        ${loadingEl}
       </div>
       ${txRows || '<div class="tx-empty">No transactions found.</div>'}
     </div>
@@ -391,8 +380,7 @@ function buildPagination(current, total) {
   }
 
   for (let i = start; i <= end; i++) {
-    const loaded = (i + 1) * PAGE_SIZE <= allTxs.length;
-    html += `<button class="page-btn${i === current ? ' active' : ''}${!loaded ? ' loading' : ''}" onclick="goToPage(${i})">${i + 1}</button>`;
+    html += `<button class="page-btn${i === current ? ' active' : ''}" onclick="goToPage(${i})">${i + 1}</button>`;
   }
 
   if (end < total - 1) {
@@ -406,25 +394,32 @@ function buildPagination(current, total) {
   return html;
 }
 
-async function loadAllTransactions(address, before) {
-  while (allTxs.length < totalTxCount) {
-    const { txs, nextBefore } = await fetchAddressTxPage(address, before);
-    if (!txs.length) break;
-    allTxs.push(...txs);
-    if (lastStatementAddress === address) {
-      renderAddressStatement(address, balance, currentPage, cachedPriceMap);
-    }
-    if (!nextBefore) break;
-    before = nextBefore;
-  }
+async function fetchPage(address, page) {
+  if (pageCache[page]) return pageCache[page];
+  const txs = await fetchAddressTxs(address, page * PAGE_SIZE);
+  pageCache[page] = txs;
+  return txs;
 }
 
-function goToPage(page) {
+async function goToPage(page) {
   if (!lastStatementAddress) return;
   const totalPages = Math.ceil(totalTxCount / PAGE_SIZE);
   if (page < 0 || page >= totalPages) return;
-  if (page * PAGE_SIZE >= allTxs.length) return;
-  renderAddressStatement(lastStatementAddress, balance, page, cachedPriceMap);
+  if (pageCache[page]) {
+    currentPage = page;
+    renderAddressStatement(lastStatementAddress, balance, page, cachedPriceMap);
+    return;
+  }
+  showLoading(true);
+  try {
+    await fetchPage(lastStatementAddress, page);
+    currentPage = page;
+    renderAddressStatement(lastStatementAddress, balance, page, cachedPriceMap);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
 }
 
 async function showStatement() {
@@ -434,7 +429,10 @@ async function showStatement() {
   }
   showLoading(true);
   try {
-    const bal = await fetchAddressBalance(lastStatementAddress);
+    const [bal] = await Promise.all([
+      fetchAddressBalance(lastStatementAddress),
+      pageCache[currentPage] ? Promise.resolve() : fetchPage(lastStatementAddress, currentPage)
+    ]);
     balance = bal;
     renderAddressStatement(lastStatementAddress, balance, currentPage, cachedPriceMap);
   } catch (err) {
@@ -472,7 +470,7 @@ function resetForm() {
   lastStatementAddress = null;
   lastReceiptTx = null;
   lastStatementData = null;
-  allTxs = [];
+  pageCache = {};
   totalTxCount = 0;
   currentPage = 0;
   balance = 0;
@@ -504,21 +502,18 @@ async function handleGenerate() {
       renderReceipt(tx, price);
     } else if (ADDRESS_REGEX.test(raw)) {
       lastStatementAddress = null;
-      allTxs = [];
+      pageCache = {};
       totalTxCount = 0;
       currentPage = 0;
-      const [bal, count, firstPage] = await Promise.all([
+      const [bal, count, txs] = await Promise.all([
         fetchAddressBalance(raw),
         fetchAddressTxCount(raw),
-        fetchAddressTxPage(raw)
+        fetchAddressTxs(raw, 0)
       ]);
       balance = bal;
       totalTxCount = count;
-      allTxs = firstPage.txs;
+      pageCache[0] = txs;
       renderAddressStatement(raw, balance, 0, cachedPriceMap);
-      if (allTxs.length < totalTxCount && firstPage.nextBefore) {
-        loadAllTransactions(raw, firstPage.nextBefore);
-      }
     } else {
       showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
       return;
