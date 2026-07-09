@@ -521,8 +521,8 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
-    ${showBack ? '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button>' : ''}
     <button class="card-btn" id="export-receipt-btn">Download CSV</button>
+    ${showBack ? '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button>' : ''}
   `;
 }
 
