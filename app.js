@@ -530,6 +530,10 @@ function renderStatement() {
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
       ${summaryHtml}
     </div>
+    <div class="receipt-actions">
+      <button class="btn-export" id="export-csv-btn">Export</button>
+      <button class="btn-new" id="search-btn">New Search</button>
+    </div>
     <div class="tx-list">
       <div class="tx-list-header">
         <span>${txs.length} transaction${txs.length !== 1 ? 's' : ''}</span>
@@ -538,10 +542,6 @@ function renderStatement() {
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
     </div>
     ${buildPagination(page, totalPages)}
-    <div class="receipt-actions">
-      <button class="btn-export" id="export-csv-btn">Export</button>
-      <button class="btn-new" id="search-btn">New Search</button>
-    </div>
   `;
 
   receiptCard.classList.add('hidden');
