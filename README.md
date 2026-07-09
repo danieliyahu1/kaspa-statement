@@ -15,7 +15,7 @@ A pure client-side single-page app. No backend, no database, no build step — j
 
 ## Usage
 
-Open `index.html` in a browser (or serve it with any static file server).
+Open `index.html` in a browser, serve it with any static file server, or use the hosted version at **[kaspa-receipts.onrender.com](https://kaspa-receipts.onrender.com/)**.
 
 ### Single Transaction
 
