@@ -17,12 +17,6 @@ document.body.innerHTML = `
     <div class="receipt-card" id="receipt-card"></div>
     <div id="statement-card" class="hidden"></div>
   </div>
-  <div id="date-range-section" class="date-range hidden">
-    <label for="from-date">From</label>
-    <input type="date" id="from-date" class="date-input" min="2021-11-11">
-    <label for="to-date">To</label>
-    <input type="date" id="to-date" class="date-input">
-  </div>
 `;
 
 // Suppress [Kaspa Receipts] logs during tests

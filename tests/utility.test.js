@@ -288,7 +288,7 @@ describe('exportCSV', () => {
       inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
       outputs: [{ script_public_key_address: address, amount: '100000000' }],
     }];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
 
     const appendSpy = vi.spyOn(document.body, 'appendChild');
     exportCSV();
@@ -296,7 +296,7 @@ describe('exportCSV', () => {
     expect(appendSpy).toHaveBeenCalledOnce();
     const link = appendSpy.mock.calls[0][0];
     expect(link.tagName).toBe('A');
-    expect(link.download).toBe('kaspa-history-2024-01-01-2024-12-31.csv');
+    expect(link.download).toBe('kaspa-history-kaspa:aaaaaa.csv');
     expect(link.href).toBe('blob:mock');
   });
 
@@ -312,7 +312,7 @@ describe('exportCSV', () => {
         { script_public_key_address: 'kaspa:other', amount: '200000000' },
       ],
     }];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     priceMap = { '2024-0-1': 0.5 };
 
     const BlobOrig = globalThis.Blob;

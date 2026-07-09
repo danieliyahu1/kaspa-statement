@@ -51,7 +51,7 @@ describe('renderReceipt', () => {
   });
 
   it('includes Back to History button when statement exists', () => {
-    statement = { address: 'kaspa:test', balance: '0', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address: 'kaspa:test', balance: '0', txs: [], page: 0 };
     renderReceipt(mockTx, null);
     const card = document.getElementById('receipt-card');
     expect(card.innerHTML).toContain('Back to History');
@@ -78,7 +78,7 @@ describe('renderStatement', () => {
   const address = 'kaspa:' + 'a'.repeat(61);
 
   it('renders empty state when no txs', () => {
-    statement = { address, balance: '500000000', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '500000000', txs: [], page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Kaspa History');
@@ -97,7 +97,7 @@ describe('renderStatement', () => {
         outputs: [{ script_public_key_address: address, amount: '100000000' }],
       },
     ];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('1 transaction');
@@ -119,7 +119,7 @@ describe('renderStatement', () => {
         ],
       },
     ];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Sent');
@@ -137,7 +137,7 @@ describe('renderStatement', () => {
         outputs: [{ script_public_key_address: address, amount: '500000000' }],
       },
     ];
-    statement = { address, balance: '500000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '500000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Self');
@@ -155,7 +155,7 @@ describe('renderStatement', () => {
         outputs: [{ script_public_key_address: 'kaspa:other', amount: '100000000' }],
       },
     ];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Pending');
@@ -172,7 +172,7 @@ describe('renderStatement', () => {
         outputs: [{ script_public_key_address: address, amount: '100000000' }],
       },
     ];
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
 
     const row = document.querySelector('.tx-row');
@@ -189,7 +189,7 @@ describe('renderStatement', () => {
       inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
       outputs: [{ script_public_key_address: address, amount: '100000000' }],
     }));
-    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Next');
@@ -198,7 +198,7 @@ describe('renderStatement', () => {
   });
 
   it('includes New Search button', () => {
-    statement = { address, balance: '0', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '0', txs: [], page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('New Search');
@@ -206,31 +206,11 @@ describe('renderStatement', () => {
   });
 
   it('includes Export button', () => {
-    statement = { address, balance: '0', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address, balance: '0', txs: [], page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('Export');
     statement = null;
-  });
-});
-
-// ─── handleInput / input change ───────────────────────────────
-
-describe('handleInput', () => {
-  it('shows date range when input starts with kaspa:', () => {
-    const input = document.getElementById('tx-input');
-    input.value = 'kaspa:test';
-    handleInput();
-    const section = document.getElementById('date-range-section');
-    expect(section.classList.contains('hidden')).toBe(false);
-  });
-
-  it('hides date range when input does not start with kaspa:', () => {
-    const input = document.getElementById('tx-input');
-    input.value = 'a valid tx hash';
-    handleInput();
-    const section = document.getElementById('date-range-section');
-    expect(section.classList.contains('hidden')).toBe(true);
   });
 });
 
@@ -287,27 +267,9 @@ describe('handleGenerate', () => {
     expect(document.getElementById('result').classList.contains('hidden')).toBe(false);
   });
 
-  it('shows error for missing date range with address', async () => {
-    document.getElementById('tx-input').value = 'kaspa:' + 'a'.repeat(61);
-    document.getElementById('from-date').value = '';
-    document.getElementById('to-date').value = '';
-    await handleGenerate();
-    expect(document.getElementById('error').textContent).toContain('date range');
-  });
-
-  it('shows error when from date is after to date', async () => {
-    document.getElementById('tx-input').value = 'kaspa:' + 'a'.repeat(61);
-    document.getElementById('from-date').value = '2024-12-31';
-    document.getElementById('to-date').value = '2024-01-01';
-    await handleGenerate();
-    expect(document.getElementById('error').textContent).toContain('must be before');
-  });
-
-  it('fetches balance and txs for valid address+date range', async () => {
+  it('fetches balance and txs for valid address', async () => {
     const addr = 'kaspa:' + 'a'.repeat(61);
     document.getElementById('tx-input').value = addr;
-    document.getElementById('from-date').value = '2024-01-01';
-    document.getElementById('to-date').value = '2024-12-31';
 
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -337,7 +299,7 @@ describe('goToPage', () => {
       inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
       outputs: [{ script_public_key_address: addr, amount: '100000000' }],
     }));
-    statement = { address: addr, balance: '0', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address: addr, balance: '0', txs, page: 0 };
 
     goToPage(1);
     expect(statement.page).toBe(1);
@@ -353,7 +315,7 @@ describe('goToPage', () => {
 
   it('does nothing for out of range pages', () => {
     const addr = 'kaspa:' + 'a'.repeat(61);
-    statement = { address: addr, balance: '0', txs: [{ transaction_id: 'a'.repeat(64), is_accepted: true, block_time: 1704067200000, inputs: [], outputs: [] }], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    statement = { address: addr, balance: '0', txs: [{ transaction_id: 'a'.repeat(64), is_accepted: true, block_time: 1704067200000, inputs: [], outputs: [] }], page: 0 };
 
     goToPage(5);
     expect(statement.page).toBe(0);

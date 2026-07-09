@@ -164,53 +164,6 @@ label {
   animation: spin 0.7s linear infinite;
 }
 
-.date-range {
-  margin-top: 16px;
-}
-
-.date-range-group {
-  display: flex;
-  gap: 12px;
-}
-
-.date-field {
-  flex: 1;
-}
-
-.date-field label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.date-input {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  border: 1.5px solid var(--border-input);
-  border-radius: 8px;
-  outline: none;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.date-input:focus {
-  border-color: var(--kaspa-teal);
-  box-shadow: 0 0 0 3px rgba(112, 199, 186, 0.2);
-}
-
-.date-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
-
 .loading {
   text-align: center;
   padding: 40px 0;
@@ -870,13 +823,6 @@ label {
   font-size: 12px;
   padding: 0 2px;
   letter-spacing: 1px;
-}
-
-.loading-txs {
-  font-size: 11px;
-  color: #aeaeb2;
-  font-weight: 400;
-  margin-left: 8px;
 }
 
 .tx-list-header {

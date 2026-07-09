@@ -26,10 +26,6 @@ const errorEl = $('error');
 const resultEl = $('result');
 const receiptCard = $('receipt-card');
 const statementCard = $('statement-card');
-const fromDateInput = $('from-date');
-const toDateInput = $('to-date');
-const dateRangeSection = $('date-range-section');
-
 let receiptTx = null;
 let statement = null;
 let priceMap = null;
@@ -517,7 +513,7 @@ function renderProfitSummary(txs, address, txGains, fifoSummary) {
 
 function exportCSV() {
   if (!statement) { warn('exportCSV called but statement is null'); return; }
-  const { address, txs, fromDate, toDate, txGains } = statement;
+  const { address, txs, txGains } = statement;
 
   const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status', 'Cost Basis (USD)', 'Realized Gain (USD)'];
   const rows = txs.map(tx => {
@@ -552,7 +548,7 @@ function exportCSV() {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `kaspa-history-${fromDate}-${toDate}.csv`;
+  link.download = `kaspa-history-${address.slice(0, 12)}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -596,7 +592,7 @@ function buildPagination(current, total) {
 
 function renderStatement() {
   if (!statement) { warn('renderStatement called but statement is null'); return; }
-  const { address, balance, txs, fromDate, toDate, page } = statement;
+  const { address, balance, txs, page } = statement;
   const startIdx = page * PAGE_SIZE;
   const pageTxs = txs.slice(startIdx, startIdx + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(txs.length / PAGE_SIZE));
@@ -660,7 +656,6 @@ function renderStatement() {
     <div class="tx-list">
       <div class="tx-list-header">
         <span>${txs.length} transaction${txs.length !== 1 ? 's' : ''}</span>
-        <span class="loading-txs">${fromDate} to ${toDate}</span>
       </div>
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
     </div>
@@ -715,15 +710,6 @@ function refreshUSD() {
   }
 }
 
-function setDefaultDateRange() {
-  const today = new Date();
-  const yearAgo = new Date();
-  yearAgo.setFullYear(today.getFullYear() - 1);
-  fromDateInput.value = yearAgo.toISOString().split('T')[0];
-  toDateInput.value = today.toISOString().split('T')[0];
-  toDateInput.max = today.toISOString().split('T')[0];
-}
-
 function resetForm() {
   log('Resetting form');
   input.value = '';
@@ -733,7 +719,6 @@ function resetForm() {
   statementCard.classList.add('hidden');
   receiptTx = null;
   statement = null;
-  dateRangeSection.classList.add('hidden');
   hideError();
 }
 
@@ -772,36 +757,19 @@ async function handleGenerate() {
     } else if (ADDRESS_REGEX.test(raw)) {
       log('Input matched address pattern');
       statement = null;
-      const fromDate = fromDateInput.value;
-      const toDate = toDateInput.value;
-      log('Date range:', fromDate, 'to', toDate);
-      if (!fromDate || !toDate) {
-        showError('Please select a date range for address lookups.');
-        showLoading(false);
-        return;
-      }
-      if (fromDate > toDate) {
-        showError('The "From" date must be before the "To" date.');
-        showLoading(false);
-        return;
-      }
-      const fromMs = new Date(fromDate + 'T00:00:00').getTime();
-      const toMs = new Date(toDate + 'T23:59:59').getTime();
-      log('Date range in ms:', fromMs, 'to', toMs);
       const [bal, allTxs] = await Promise.all([
         fetchAddressBalance(raw),
         fetchAllTxsFromGenesis(raw)
       ]);
       log('All txs from genesis:', allTxs.length);
       const fifoResult = buildFIFOQueue(allTxs, raw, priceMap);
-      const txs = allTxs.filter(tx => tx.block_time >= fromMs && tx.block_time <= toMs);
-      txs.reverse();
-      log('Display txs in range:', txs.length);
+      const txs = [...allTxs].reverse();
+      log('Display txs:', txs.length);
       statement = {
         address: raw, balance: bal, txs, allTxs,
         txGains: fifoResult.txGains,
         fifoSummary: { remainingCostBasis: fifoResult.remainingCostBasis, remainingAmountSompi: fifoResult.remainingAmountSompi },
-        fromDate, toDate, page: 0, _gainsComputed: true
+        page: 0, _gainsComputed: true
       };
       renderStatement();
     } else {
@@ -825,11 +793,6 @@ function handleInput() {
   log('Input changed:', val);
   input.classList.remove('error');
   hideError();
-  if (val.startsWith('kaspa:')) {
-    dateRangeSection.classList.remove('hidden');
-  } else {
-    dateRangeSection.classList.add('hidden');
-  }
 }
 
 function initEventListeners() {
@@ -884,7 +847,6 @@ function initEventListeners() {
 }
 
 log('App starting...');
-setDefaultDateRange();
 priceMapPromise = fetchPriceMap().then(map => {
   log('Price map initialization complete. Available:', !!map);
   priceMap = map;
