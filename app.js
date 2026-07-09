@@ -164,6 +164,38 @@ async function fetchAddressTxs(address, offset = 0) {
   return data;
 }
 
+async function fetchAddressTxCount(address) {
+  log('Fetching tx count for address:', address);
+  const res = await fetch(`${API_BASE}/addresses/${address}/transactions-count`);
+  if (!res.ok) {
+    error('Tx count fetch failed:', res.status, res.statusText);
+    throw new Error('Could not fetch transaction count.');
+  }
+  const data = await res.json();
+  log('Address tx count:', address, 'total:', data.total);
+  return data.total;
+}
+
+async function fetchAddressTxsPage(address, before) {
+  let url;
+  if (before) {
+    url = `${API_BASE}/addresses/${address}/full-transactions-page?after=0&before=${before}&limit=500&resolve_previous_outpoints=light`;
+  } else {
+    url = `${API_BASE}/addresses/${address}/full-transactions-page?after=0&limit=500&resolve_previous_outpoints=light`;
+  }
+  log('Fetching address txs page', before ? 'before: ' + before : '(first page)');
+  const res = await fetch(url);
+  if (!res.ok) {
+    error('Address txs page fetch failed:', res.status, res.statusText);
+    if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
+    throw new Error('The Kaspa network is currently unavailable. Please try again.');
+  }
+  const txs = await res.json();
+  const nextBefore = res.headers.get('X-Next-Page-Before');
+  log('Address txs page count:', txs.length, 'nextBefore:', nextBefore);
+  return { txs, nextBefore: nextBefore || null };
+}
+
 async function fetchPriceMap() {
   log('Fetching price map from Bybit...');
   try {
@@ -231,35 +263,85 @@ function getTxAmount(tx, address, direction) {
     .reduce((sum, o) => sum + Number(o.amount), 0);
 }
 
-async function fetchAllAddressTxs(address, fromMs, toMs) {
-  log('Fetching all address txs:', address, 'from:', new Date(fromMs).toISOString(), 'to:', new Date(toMs).toISOString());
-  const allTxs = [];
-  let offset = 0;
-  let done = false;
-
-  while (!done) {
-    const page = await fetchAddressTxs(address, offset);
-    if (!page || page.length === 0) {
-      log('No more pages returned, stopping');
-      break;
-    }
-
-    for (const tx of page) {
-      if (tx.block_time < fromMs) { done = true; break; }
-      if (tx.block_time <= toMs) {
-        allTxs.push(tx);
-      }
-    }
-
-    offset += page.length;
-    loadingText.textContent = `Fetching transactions\u2026 page ${Math.ceil(offset / PAGE_SIZE)} (${allTxs.length} found)`;
-    log('Fetched page, total collected:', allTxs.length, 'offset:', offset);
-
-    if (page.length < PAGE_SIZE || done) break;
+async function fetchAllTxsFromGenesis(address) {
+  log('Fetching all txs from genesis for address:', address);
+  const total = await fetchAddressTxCount(address);
+  if (total === 0) {
+    log('No transactions found for address');
+    return [];
   }
 
-  log('All txs fetched. Total:', allTxs.length);
+  const allTxs = [];
+  let before = null;
+  let pageNum = 0;
+  const totalPages = Math.ceil(total / 500);
+
+  do {
+    pageNum++;
+    showLoading(true, `Fetching transactions\u2026 page ${pageNum} of ${totalPages}`);
+    const { txs, nextBefore } = await fetchAddressTxsPage(address, before);
+    allTxs.push(...txs);
+    before = nextBefore;
+    log('Fetched page, collected:', allTxs.length, 'total:', total);
+  } while (before);
+
+  allTxs.reverse();
+  log('All txs fetched from genesis and reversed. Total:', allTxs.length);
   return allTxs;
+}
+
+function buildFIFOQueue(txs, address, priceMap) {
+  log('Building FIFO queue from', txs.length, 'transactions');
+  const lots = [];
+  const txGains = {};
+
+  for (const tx of txs) {
+    const direction = getTxDirection(tx, address);
+    if (direction === 'self') continue;
+
+    const amount = getTxAmount(tx, address, direction);
+    const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+
+    if (direction === 'received') {
+      lots.push({
+        amount,
+        costBasisPerKas: price || 0,
+        timestamp: tx.block_time,
+        txId: tx.transaction_id
+      });
+    } else if (direction === 'sent') {
+      let remaining = amount;
+      let totalSaleValue = 0;
+      let totalCostBasis = 0;
+
+      while (remaining > 0 && lots.length > 0) {
+        const lot = lots[0];
+        const consumed = Math.min(remaining, lot.amount);
+        const kasConsumed = getKasAmount(consumed);
+        const salePrice = price || 0;
+
+        totalSaleValue += kasConsumed * salePrice;
+        totalCostBasis += kasConsumed * lot.costBasisPerKas;
+
+        lot.amount -= consumed;
+        remaining -= consumed;
+        if (lot.amount === 0) lots.shift();
+      }
+
+      if (remaining > 0) {
+        warn('FIFO: insufficient lots for tx', tx.transaction_id?.slice(0, 12), 'remaining:', getKasAmount(remaining), 'KAS');
+      }
+
+      txGains[tx.transaction_id] = {
+        gain: totalSaleValue - totalCostBasis,
+        saleValue: totalSaleValue,
+        costBasis: totalCostBasis
+      };
+    }
+  }
+
+  log('FIFO queue built. Lots remaining:', lots.length, 'txs with gains:', Object.keys(txGains).length);
+  return txGains;
 }
 
 function renderReceipt(tx, price) {
@@ -345,28 +427,36 @@ function renderReceipt(tx, price) {
   `;
 }
 
-function renderNetSummary(txs, address) {
+function renderProfitSummary(txs, address, txGains) {
   if (!txs.length) return '';
 
   let receivedSompi = 0, sentSompi = 0;
-  let receivedUsd = 0, sentUsd = 0;
+  let totalGain = 0, totalSaleValue = 0, totalCostBasis = 0;
   let hadMissingPrice = false;
 
   txs.forEach(tx => {
     const direction = getTxDirection(tx, address);
     const amount = getTxAmount(tx, address, direction);
-    const kas = getKasAmount(amount);
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     if (!price && priceMap) hadMissingPrice = true;
-    const usd = price ? kas * price : 0;
 
-    if (direction === 'received') { receivedSompi += amount; receivedUsd += usd; }
-    else if (direction === 'sent') { sentSompi += amount; sentUsd += usd; }
-    else if (direction === 'self') { receivedSompi += amount; receivedUsd += usd; sentSompi += amount; sentUsd += usd; }
+    if (direction === 'received') {
+      receivedSompi += amount;
+    } else if (direction === 'sent') {
+      sentSompi += amount;
+      const g = txGains ? txGains[tx.transaction_id] : null;
+      if (g) {
+        totalGain += g.gain;
+        totalSaleValue += g.saleValue;
+        totalCostBasis += g.costBasis;
+      }
+    } else if (direction === 'self') {
+      receivedSompi += amount;
+      sentSompi += amount;
+    }
   });
 
   const netSompi = receivedSompi - sentSompi;
-  const netUsd = receivedUsd - sentUsd;
   const hasUsd = priceMap !== null;
 
   return `
@@ -376,33 +466,50 @@ function renderNetSummary(txs, address) {
         <span class="summary-label">Received</span>
         <div class="summary-values">
           <div class="summary-kas">${formatKAS(receivedSompi)}</div>
-          ${hasUsd ? `<div class="summary-usd">≈ ${formatUSD(receivedUsd)} USD</div>` : ''}
         </div>
       </div>
       <div class="summary-row">
         <span class="summary-label">Sent</span>
         <div class="summary-values">
           <div class="summary-kas">${formatKAS(sentSompi)}</div>
-          ${hasUsd ? `<div class="summary-usd">≈ ${formatUSD(sentUsd)} USD</div>` : ''}
         </div>
       </div>
       <div class="summary-row summary-net">
         <span class="summary-label">Change</span>
         <div class="summary-values">
           <div class="summary-kas">${formatKAS(netSompi)}</div>
-          ${hasUsd ? `<div class="summary-usd">≈ ${formatUSD(netUsd)} USD</div>` : ''}
         </div>
       </div>
-      ${hasUsd && hadMissingPrice ? `<div class="summary-note">No price data prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
+      ${hasUsd ? `
+      <div class="summary-divider"></div>
+      <div class="summary-row ${totalGain >= 0 ? 'summary-profit' : 'summary-loss'}">
+        <span class="summary-label">Profit</span>
+        <div class="summary-values">
+          <div class="summary-usd profit-value">${totalGain >= 0 ? formatUSD(totalGain) : '-' + formatUSD(Math.abs(totalGain))}</div>
+        </div>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Cost Basis</span>
+        <div class="summary-values">
+          <div class="summary-usd">${formatUSD(totalCostBasis)}</div>
+        </div>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Sale Value</span>
+        <div class="summary-values">
+          <div class="summary-usd">${formatUSD(totalSaleValue)}</div>
+        </div>
+      </div>` : ''}
+      ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
 }
 
 function exportCSV() {
   if (!statement) { warn('exportCSV called but statement is null'); return; }
-  const { address, txs, fromDate, toDate } = statement;
+  const { address, txs, fromDate, toDate, txGains } = statement;
 
-  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status'];
+  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status', 'Cost Basis (USD)', 'Realized Gain (USD)'];
   const rows = txs.map(tx => {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
@@ -411,6 +518,7 @@ function exportCSV() {
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     const usd = price ? formatUSD(kas * price) : '';
     const status = tx.is_accepted ? 'Confirmed' : 'Pending';
+    const gain = direction === 'sent' && txGains ? txGains[tx.transaction_id] : null;
     return [
       formatShortDate(tx.block_time),
       direction === 'sent' ? 'Sent' : (direction === 'self' ? 'Self' : 'Received'),
@@ -418,7 +526,9 @@ function exportCSV() {
       usd,
       counterparty,
       tx.transaction_id,
-      status
+      status,
+      gain ? formatUSD(gain.costBasis) : '',
+      gain ? formatUSD(gain.gain) : ''
     ];
   });
 
@@ -481,7 +591,7 @@ function renderStatement() {
   const pageTxs = txs.slice(startIdx, startIdx + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(txs.length / PAGE_SIZE));
 
-  const summaryHtml = renderNetSummary(txs, address);
+  const summaryHtml = renderProfitSummary(txs, address, statement.txGains);
 
   let txRows = '';
   pageTxs.forEach((tx) => {
@@ -504,6 +614,8 @@ function renderStatement() {
       ? '<span class="tx-status unconfirmed">Pending</span>'
       : '';
 
+    const gainInfo = isSent && statement.txGains && statement.txGains[tx.transaction_id];
+
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
@@ -514,6 +626,7 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
+          ${gainInfo ? `<span class="tx-gain ${gainInfo.gain >= 0 ? 'gain-positive' : 'gain-negative'}">${gainInfo.gain >= 0 ? 'Gain: ' + formatUSD(gainInfo.gain) : 'Loss: ' + formatUSD(Math.abs(gainInfo.gain))}</span>` : ''}
           ${status}
         </div>
       </div>
@@ -652,12 +765,15 @@ async function handleGenerate() {
       const fromMs = new Date(fromDate + 'T00:00:00').getTime();
       const toMs = new Date(toDate + 'T23:59:59').getTime();
       log('Date range in ms:', fromMs, 'to', toMs);
-      const [bal, txs] = await Promise.all([
+      const [bal, allTxs] = await Promise.all([
         fetchAddressBalance(raw),
-        fetchAllAddressTxs(raw, fromMs, toMs)
+        fetchAllTxsFromGenesis(raw)
       ]);
-      log('Statement data: balance:', bal, 'tx count:', txs.length);
-      statement = { address: raw, balance: bal, txs, fromDate, toDate, page: 0 };
+      log('All txs from genesis:', allTxs.length);
+      const txGains = buildFIFOQueue(allTxs, raw, priceMap);
+      const txs = allTxs.filter(tx => tx.block_time >= fromMs && tx.block_time <= toMs);
+      log('Display txs in range:', txs.length);
+      statement = { address: raw, balance: bal, txs, allTxs, txGains, fromDate, toDate, page: 0 };
       renderStatement();
     } else {
       warn('Input did not match TX hash or address pattern');

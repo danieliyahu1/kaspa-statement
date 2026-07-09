@@ -470,6 +470,41 @@ label {
   font-style: italic;
 }
 
+.summary-divider {
+  height: 1px;
+  background: #e8e8e0;
+  margin: 8px 0;
+}
+
+.summary-profit .summary-usd {
+  color: #389e0d;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.summary-loss .summary-usd {
+  color: #d4380d;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.profit-value {
+  font-size: 15px;
+}
+
+.tx-gain {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tx-gain.gain-positive {
+  color: #389e0d;
+}
+
+.tx-gain.gain-negative {
+  color: #d4380d;
+}
+
 
 .receipt-actions {
   display: flex;

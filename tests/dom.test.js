@@ -315,7 +315,7 @@ describe('handleGenerate', () => {
     });
     fetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve({ total: 0 }),
     });
 
     await handleGenerate();
@@ -417,13 +417,13 @@ describe('resetForm', () => {
   });
 });
 
-// ─── renderNetSummary ─────────────────────────────────────────
+// ─── renderProfitSummary ──────────────────────────────────────
 
-describe('renderNetSummary', () => {
+describe('renderProfitSummary', () => {
   const address = 'kaspa:' + 'a'.repeat(61);
 
   it('returns empty string for empty txs', () => {
-    expect(renderNetSummary([], address)).toBe('');
+    expect(renderProfitSummary([], address, {})).toBe('');
   });
 
   it('calculates received/sent totals', () => {
@@ -447,7 +447,7 @@ describe('renderNetSummary', () => {
       },
     ];
 
-    const html = renderNetSummary(txs, address);
+    const html = renderProfitSummary(txs, address, {});
     expect(html).toContain('Summary');
     expect(html).toContain('Received');
     expect(html).toContain('Sent');
@@ -466,7 +466,7 @@ describe('renderNetSummary', () => {
       },
     ];
 
-    const html = renderNetSummary(txs, address);
+    const html = renderProfitSummary(txs, address, {});
     expect(html).toContain('5.00 KAS'); // both received and sent
   });
 });

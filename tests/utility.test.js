@@ -323,12 +323,141 @@ describe('exportCSV', () => {
     exportCSV();
 
     const content = capturedArgs[0][0];
-    expect(content).toContain('Date,Direction,Amount (KAS),USD Value,Counterparty,Transaction ID,Status');
+    expect(content).toContain('Date,Direction,Amount (KAS),USD Value,Counterparty,Transaction ID,Status,Cost Basis (USD),Realized Gain (USD)');
     expect(content).toContain('Sent');
     expect(content).toContain('2');
     expect(content).toContain('$1.00');
     expect(content).toContain('kaspa:other');
     expect(content).toContain('Confirmed');
+  });
+});
+
+// ─── buildFIFOQueue ──────────────────────────────────────────
+
+describe('buildFIFOQueue', () => {
+  const address = 'kaspa:testaddress123';
+
+  it('basic receive then send computes correct gain', () => {
+    const txs = [
+      {
+        transaction_id: 'recv1',
+        block_time: 1704067200000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'send1',
+        block_time: 1704153600000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '5000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '5000000000' },
+        ],
+      },
+    ];
+    const map = { '2024-0-1': 1, '2024-0-2': 2 };
+    const result = buildFIFOQueue(txs, address, map);
+    expect(result.send1).toBeDefined();
+    expect(result.send1.gain).toBe(50);      // 50 KAS * ($2 - $1)
+    expect(result.send1.saleValue).toBe(100); // 50 KAS * $2
+    expect(result.send1.costBasis).toBe(50);  // 50 KAS * $1
+  });
+
+  it('consumes from multiple lots in FIFO order', () => {
+    const txs = [
+      {
+        transaction_id: 'recv1',
+        block_time: 1704067200000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'recv2',
+        block_time: 1704153600000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender2' }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'send1',
+        block_time: 1704240000000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '5000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '15000000000' },
+        ],
+      },
+    ];
+    const map = { '2024-0-1': 1, '2024-0-2': 2, '2024-0-3': 3 };
+    const result = buildFIFOQueue(txs, address, map);
+    // 100 KAS from lot 1 at $3-1 = $2 → $200, 50 KAS from lot 2 at $3-2 = $1 → $50
+    expect(result.send1.gain).toBeCloseTo(250);
+    expect(result.send1.saleValue).toBe(450); // 150 * $3
+    expect(result.send1.costBasis).toBe(200); // 100*$1 + 50*$2
+  });
+
+  it('skips self transactions', () => {
+    const txs = [
+      {
+        transaction_id: 'self1',
+        block_time: 1704067200000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'recv1',
+        block_time: 1704153600000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'send1',
+        block_time: 1704240000000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '5000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '5000000000' },
+        ],
+      },
+    ];
+    const map = { '2024-0-1': 1, '2024-0-2': 2, '2024-0-3': 3 };
+    const result = buildFIFOQueue(txs, address, map);
+    expect(result.self1).toBeUndefined();
+    // recv1 lot was after self1, so send1 consumes from recv1
+    expect(result.send1.gain).toBe(50); // 50 * ($3 - $2)
+  });
+
+  it('returns zero gain when no price data', () => {
+    const txs = [
+      {
+        transaction_id: 'recv1',
+        block_time: 1704067200000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+        outputs: [{ script_public_key_address: address, amount: '10000000000' }],
+      },
+      {
+        transaction_id: 'send1',
+        block_time: 1704153600000,
+        is_accepted: true,
+        inputs: [{ previous_outpoint_address: address }],
+        outputs: [
+          { script_public_key_address: address, amount: '5000000000' },
+          { script_public_key_address: 'kaspa:other', amount: '5000000000' },
+        ],
+      },
+    ];
+    const result = buildFIFOQueue(txs, address, null);
+    expect(result.send1.gain).toBe(0);
+    expect(result.send1.saleValue).toBe(0);
+    expect(result.send1.costBasis).toBe(0);
   });
 });
 

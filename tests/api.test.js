@@ -124,6 +124,114 @@ describe('fetchAddressTxs', () => {
   });
 });
 
+// ─── fetchAddressTxCount ──────────────────────────────────────
+
+describe('fetchAddressTxCount', () => {
+  const address = 'kaspa:' + 'a'.repeat(61);
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns total count on success', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ total: 42 }),
+    });
+    const count = await fetchAddressTxCount(address);
+    expect(count).toBe(42);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/transactions-count')
+    );
+  });
+
+  it('throws on error', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(fetchAddressTxCount(address)).rejects.toThrow('Could not fetch transaction count');
+  });
+});
+
+// ─── fetchAddressTxsPage ──────────────────────────────────────
+
+describe('fetchAddressTxsPage', () => {
+  const address = 'kaspa:' + 'a'.repeat(61);
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns txs and nextBefore header', async () => {
+    const mockTxs = [{ transaction_id: 'abc' }];
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockTxs),
+      headers: { get: (name) => name === 'X-Next-Page-Before' ? '1780000000000' : null },
+    });
+    const result = await fetchAddressTxsPage(address);
+    expect(result.txs).toEqual(mockTxs);
+    expect(result.nextBefore).toBe('1780000000000');
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/full-transactions-page')
+    );
+  });
+
+  it('omits before param on first page', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+      headers: { get: () => null },
+    });
+    await fetchAddressTxsPage(address);
+    const url = fetch.mock.calls[0][0];
+    expect(url).not.toContain('before=');
+  });
+
+  it('includes before param on subsequent pages', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+      headers: { get: () => null },
+    });
+    await fetchAddressTxsPage(address, '1780000000000');
+    const url = fetch.mock.calls[0][0];
+    expect(url).toContain('before=1780000000000');
+  });
+
+  it('returns null nextBefore when header is missing', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+      headers: { get: () => null },
+    });
+    const result = await fetchAddressTxsPage(address);
+    expect(result.nextBefore).toBeNull();
+  });
+
+  it('throws on 404', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    await expect(fetchAddressTxsPage(address)).rejects.toThrow('Address not found');
+  });
+
+  it('uses limit=500', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+      headers: { get: () => null },
+    });
+    await fetchAddressTxsPage(address);
+    const url = fetch.mock.calls[0][0];
+    expect(url).toContain('limit=500');
+  });
+});
+
 // ─── fetchPriceMap ────────────────────────────────────────────
 
 describe('fetchPriceMap', () => {
