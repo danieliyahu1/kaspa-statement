@@ -192,7 +192,9 @@ function getTxAmount(tx, address, direction) {
       .filter(o => o.script_public_key_address !== address)
       .reduce((sum, o) => sum + Number(o.amount), 0);
   }
-  return Number(tx.outputs[0].amount);
+  return tx.outputs
+    .filter(o => o.script_public_key_address === address)
+    .reduce((sum, o) => sum + Number(o.amount), 0);
 }
 
 async function fetchAllAddressTxs(address, fromMs, toMs) {
@@ -319,6 +321,7 @@ function renderNetSummary(txs, address) {
 
     if (direction === 'received') { receivedSompi += amount; receivedUsd += usd; }
     else if (direction === 'sent') { sentSompi += amount; sentUsd += usd; }
+    else if (direction === 'self') { receivedSompi += amount; receivedUsd += usd; sentSompi += amount; sentUsd += usd; }
   });
 
   const netSompi = receivedSompi - sentSompi;
