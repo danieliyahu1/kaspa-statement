@@ -914,33 +914,11 @@ label {
   border-top: 3px solid var(--kaspa-teal);
 }
 
-.sk-section {
-  padding: 16px 0;
-}
-
-.sk-separator {
-  height: 1.5px;
-  background: repeating-linear-gradient(
-    90deg,
-    #e8e8e0 0px,
-    #e8e8e0 5px,
-    transparent 5px,
-    transparent 10px
-  );
-}
-
 .sk-block {
   background: linear-gradient(90deg, #e2e2da 25%, #efefe8 50%, #e2e2da 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 4px;
-}
-
-.sk-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
 }
 
 @keyframes shimmer {
