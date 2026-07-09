@@ -301,7 +301,7 @@ async function fetchAllTxsFromGenesis(address, onPage) {
     allTxs.push(...txs);
     before = nextBefore;
     log('Fetched page, collected:', allTxs.length, 'total:', total);
-    if (onPage) onPage([...allTxs], pageNum, totalPages);
+    if (onPage) onPage([...allTxs], pageNum, totalPages, total);
   } while (before);
 
   allTxs.reverse();
@@ -469,7 +469,7 @@ function renderReceipt(tx, price) {
   `;
 }
 
-function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
+function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadingMore) {
   if (!txs.length) return '';
 
   let receivedSompi = 0, sentSompi = 0;
@@ -498,6 +498,58 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
   const remainingKas = remainingAmountSompi ? getKasAmount(remainingAmountSompi) : 0;
   const showCostBasis = hasUsd && (remainingCostBasis > 0 || remainingAmountSompi > 0);
 
+  const costBasisRow = loadingMore && hasUsd
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-cost-basis">
+        <span class="summary-label">Cost Basis</span>
+        <div class="summary-values">
+          <div class="summary-usd cost-basis-value loading-placeholder"><span class="loading-pulse">Loading</span></div>
+        </div>
+      </div>`
+    : showCostBasis
+      ? `<div class="summary-divider"></div>
+        <div class="summary-row summary-cost-basis">
+          <span class="summary-label">Cost Basis</span>
+          <div class="summary-values">
+            <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
+          </div>
+        </div>`
+      : '';
+
+  const avgPriceRow = loadingMore && hasUsd
+    ? `<div class="summary-row summary-avg-price">
+        <span class="summary-label">Avg Buy Price</span>
+        <div class="summary-values">
+          <div class="summary-usd avg-price-value loading-placeholder"><span class="loading-pulse">Loading</span></div>
+        </div>
+      </div>`
+    : remainingKas > 0 && showCostBasis
+      ? `<div class="summary-row summary-avg-price">
+          <span class="summary-label">Avg Buy Price</span>
+          <div class="summary-values">
+            <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
+          </div>
+        </div>`
+      : '';
+
+  const currentValueRow = loadingMore && balance > 0
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-current-value">
+        <span class="summary-label">Current Value</span>
+        <div class="summary-values">
+          <div class="summary-usd current-value-amount loading-placeholder"><span class="loading-pulse">Loading</span></div>
+        </div>
+      </div>`
+    : currentPrice !== null && balance > 0
+      ? `<div class="summary-divider"></div>
+        <div class="summary-row summary-current-value">
+          <span class="summary-label">Current Value</span>
+          <div class="summary-values">
+            <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
+          </div>
+        </div>`
+      : '';
+
   return `
     <div class="net-summary">
       <div class="summary-title">Summary</div>
@@ -513,29 +565,9 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
           <div class="summary-kas">${formatKAS(sentSompi)}</div>
         </div>
       </div>
-      ${showCostBasis ? `
-      <div class="summary-divider"></div>
-      <div class="summary-row summary-cost-basis">
-        <span class="summary-label">Cost Basis</span>
-        <div class="summary-values">
-          <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
-        </div>
-      </div>` : ''}
-      ${remainingKas > 0 && showCostBasis ? `
-      <div class="summary-row summary-avg-price">
-        <span class="summary-label">Avg Buy Price</span>
-        <div class="summary-values">
-          <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
-        </div>
-      </div>` : ''}
-      ${currentPrice !== null && balance > 0 ? `
-      <div class="summary-divider"></div>
-      <div class="summary-row summary-current-value">
-        <span class="summary-label">Current Value</span>
-        <div class="summary-values">
-          <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
-        </div>
-      </div>` : ''}
+      ${costBasisRow}
+      ${avgPriceRow}
+      ${currentValueRow}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
@@ -628,7 +660,7 @@ function renderStatement() {
   const pageTxs = txs.slice(startIdx, startIdx + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(txs.length / PAGE_SIZE));
 
-  const summaryHtml = renderProfitSummary(txs, address, statement.txGains, statement.fifoSummary, statement.balance);
+  const summaryHtml = renderProfitSummary(txs, address, statement.txGains, statement.fifoSummary, statement.balance, _loadingMore);
 
   let txRows = '';
   pageTxs.forEach((tx) => {
@@ -653,6 +685,12 @@ function renderStatement() {
 
     const gainInfo = isSent && statement.txGains && statement.txGains[tx.transaction_id];
 
+    const gainHtml = isSent && _loadingMore
+      ? `<span class="tx-gain loading-placeholder"><span class="loading-pulse">Loading</span></span>`
+      : gainInfo && gainInfo.gain >= 0
+        ? `<span class="tx-gain gain-positive">Gain: ${formatUSD(gainInfo.gain)}</span>`
+        : '';
+
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
@@ -663,7 +701,7 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
-          ${gainInfo && gainInfo.gain >= 0 ? `<span class="tx-gain gain-positive">Gain: ${formatUSD(gainInfo.gain)}</span>` : ''}
+          ${gainHtml}
           ${status}
         </div>
       </div>
@@ -689,12 +727,12 @@ function renderStatement() {
     </div>
     <div class="tx-list">
       <div class="tx-list-header">
-        <span>${txs.length} transaction${txs.length !== 1 ? 's' : ''}</span>
+        <span>${_loadingMore ? `${formatNumber(txs.length)} of ${formatNumber(statement._totalTxCount)} transactions` : `${txs.length} transaction${txs.length !== 1 ? 's' : ''}`}</span>
       </div>
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
       ${loadingBanner}
     </div>
-    ${_loadingMore ? '' : buildPagination(page, totalPages)}
+    ${_loadingMore ? `<div class="pagination"><button class="page-btn" disabled>&#171; Prev</button><span class="page-info">Page 1 of ${Math.ceil(statement._totalTxCount / PAGE_SIZE)}</span><button class="page-btn" disabled>Next &#187;</button></div>` : buildPagination(page, totalPages)}
   `;
 
   receiptCard.classList.add('hidden');
@@ -800,7 +838,7 @@ async function handleGenerate() {
 
       let firstPage = true;
       const gen = ++fetchGeneration;
-      const allTxs = await fetchAllTxsFromGenesis(raw, (partialTxs, pageNum, totalPages) => {
+      const allTxs = await fetchAllTxsFromGenesis(raw, (partialTxs, pageNum, totalPages, total) => {
         if (gen !== fetchGeneration) return;
         if (firstPage && partialTxs.length > 0) {
           firstPage = false;
@@ -810,7 +848,8 @@ async function handleGenerate() {
             allTxs: null,
             txGains: {}, fifoSummary: {},
             page: 0, _gainsComputed: false, _loadingMore: true,
-            _loadingPage: pageNum, _loadingTotal: totalPages
+            _loadingPage: pageNum, _loadingTotal: totalPages,
+            _totalTxCount: total
           };
           renderStatement();
           resultEl.classList.remove('hidden');
