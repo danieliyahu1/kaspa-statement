@@ -742,7 +742,7 @@ function renderStatement() {
   const loadingBanner = _loadingMore ? `
     <div class="loading-more">
       <span class="spinner"></span>
-      <span class="loading-more-text">Loading remaining transactions\u2026</span>
+      <span class="loading-more-text">Loading remaining pages\u2026</span>
     </div>
   ` : '';
 
