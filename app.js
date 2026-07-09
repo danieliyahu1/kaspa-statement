@@ -838,8 +838,6 @@ function renderStatement() {
       ? '<span class="tx-status unconfirmed">Pending</span>'
       : '';
 
-    const gainData = isSent && !statement._loadingMore && (statement.txGains || {})[tx.transaction_id] || null;
-
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
@@ -850,7 +848,6 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
-          ${gainData ? `<span class="tx-gain ${gainData.gain >= 0 ? 'tx-gain-profit' : 'tx-gain-loss'}">${gainData.gain >= 0 ? '+' : ''}${formatUSD(gainData.gain)}</span>` : ''}
           ${status}
         </div>
       </div>

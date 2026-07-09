@@ -120,35 +120,6 @@ describe('renderStatement', () => {
     statement = null;
   });
 
-  it('shows realized gain on sent tx row', () => {
-    const txs = [
-      {
-        transaction_id: 'gain1',
-        is_accepted: true,
-        block_time: 1704067200000,
-        inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
-        outputs: [{ script_public_key_address: address, amount: '5000000000' }],
-      },
-      {
-        transaction_id: 'sent1',
-        is_accepted: true,
-        block_time: 1704153600000,
-        inputs: [{ previous_outpoint_address: address }],
-        outputs: [
-          { script_public_key_address: address, amount: '1000000000' },
-          { script_public_key_address: 'kaspa:other', amount: '2000000000' },
-        ],
-      },
-    ];
-    const txGains = { sent1: { gain: 50, saleValue: 100, costBasis: 50 } };
-    statement = { address, balance: '2000000000', txs, page: 0, txGains, _loadingMore: false };
-    renderStatement();
-    const card = document.getElementById('statement-card');
-    expect(card.innerHTML).toContain('+$50.00');
-    expect(card.innerHTML).toContain('tx-gain-profit');
-    statement = null;
-  });
-
   it('shows Self direction for self-transfers', () => {
     const txs = [
       {
