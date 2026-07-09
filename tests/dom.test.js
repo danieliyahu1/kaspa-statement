@@ -50,11 +50,11 @@ describe('renderReceipt', () => {
     expect(card.innerHTML).toContain('Coinbase');
   });
 
-  it('does not include action buttons in receipt card', () => {
+  it('does not include back button in standalone receipt', () => {
     renderReceipt(mockTx, null);
     const card = document.getElementById('receipt-card');
     expect(card.innerHTML).not.toContain('Back to Statement');
-    expect(card.innerHTML).not.toContain('New Receipt');
+    expect(card.innerHTML).toContain('Download CSV');
   });
 
   it('unhides receipt card', () => {
@@ -190,12 +190,11 @@ describe('renderStatement', () => {
     statement = null;
   });
 
-  it('shows actions bar with Export button', () => {
+  it('shows Export button in statement card', () => {
     statement = { address, balance: '0', txs: [], page: 0 };
     renderStatement();
-    const bar = document.getElementById('actions-bar');
-    expect(bar.classList.contains('hidden')).toBe(false);
-    expect(bar.innerHTML).toContain('Export');
+    const card = document.getElementById('statement-card');
+    expect(card.innerHTML).toContain('Download CSV');
     statement = null;
   });
 });

@@ -10,12 +10,8 @@ document.body.innerHTML = `
   <button id="generate-btn">Generate</button>
   <div id="loading" class="hidden">
     <div class="spinner"></div>
-    <p id="loading-text">Looking up your transaction…</p>
   </div>
   <div id="error" class="error hidden" role="alert"></div>
-  <div id="actions-bar" class="actions-bar hidden">
-    <button class="btn-export" id="export-csv-btn">Export CSV</button>
-  </div>
   <div id="result" class="hidden">
     <div class="receipt-card" id="receipt-card"></div>
     <div id="statement-card" class="hidden"></div>

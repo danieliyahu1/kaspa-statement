@@ -11,29 +11,24 @@
     <div class="header">
       <div class="logo">𐤊</div>
       <h1>Kaspa Statement</h1>
-      <p class="subtitle">A receipt for every transaction. A statement for your wallet.</p>
+
     </div>
 
     <div class="input-section">
       <div class="input-group">
-        <input type="text" id="tx-input" placeholder="Paste a transaction ID or wallet address..." maxlength="80" spellcheck="false" autocomplete="off" aria-label="Transaction ID or wallet address">
+        <input type="text" id="tx-input" placeholder="Paste a Kaspa address or transaction..." maxlength="80" spellcheck="false" autocomplete="off">
         <button id="generate-btn">Generate</button>
       </div>
     </div>
 
     <div id="loading" class="loading hidden">
       <div class="spinner"></div>
-      <p id="loading-text">Looking up your transaction…</p>
-      <div class="progress-bar-container hidden" id="progress-container">
-        <div class="progress-bar" id="progress-bar"></div>
+      <div id="progress-track" class="progress-track hidden">
+        <div id="progress-fill" class="progress-fill"></div>
       </div>
     </div>
 
     <div id="error" class="error hidden" role="alert"></div>
-
-    <div id="actions-bar" class="actions-bar hidden">
-      <button class="btn-export" id="export-csv-btn">Export</button>
-    </div>
 
     <div id="result" class="hidden">
       <div class="receipt-card" id="receipt-card"></div>

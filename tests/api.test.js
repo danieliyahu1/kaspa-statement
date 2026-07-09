@@ -245,11 +245,8 @@ describe('fetchPriceMap', () => {
 
   it('parses Bybit kline response into date-keyed map', async () => {
     const now = Date.now();
-    const today = new Date(now);
-    const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
-
-    const yesterday = new Date(now - 86400000);
-    const yesterdayKey = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`;
+    const todayKey = getDateKey(now);
+    const yesterdayKey = getDateKey(now - 86400000);
 
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -257,7 +254,7 @@ describe('fetchPriceMap', () => {
         retCode: 0,
         result: {
           list: [
-            [yesterday.getTime().toString(), '100', '110', '90', '105', '1000'],
+            [(now - 86400000).toString(), '100', '110', '90', '105', '1000'],
             [now.toString(), '200', '210', '190', '205', '2000'],
           ],
         },
@@ -265,11 +262,11 @@ describe('fetchPriceMap', () => {
     });
 
     const map = await fetchPriceMap();
-    // For today, uses open price (index 1); for past, uses close (index 4)
+    // For past dates, uses close price (index 4)
     expect(map[yesterdayKey]).toBe(105);
-    // Use .toBeCloseTo for the numeric = check
+    // For today, uses open price (index 1)
     expect(typeof map[todayKey]).toBe('number');
-    expect(map._earliest).toBe(yesterday.getTime());
+    expect(map._earliest).toBe(now - 86400000);
   });
 
   it('returns null on API error', async () => {
