@@ -520,10 +520,9 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
       ${showCostBasis ? `
       <div class="summary-divider"></div>
       <div class="summary-row summary-cost-basis">
-        <span class="summary-label">Cost Basis <span class="summary-sub">(carries forward)</span></span>
+        <span class="summary-label">Cost Basis</span>
         <div class="summary-values">
           <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
-          ${remainingKas > 0 ? `<div class="summary-avg">${formatKAS(remainingAmountSompi)}</div>` : ''}
         </div>
       </div>` : ''}
       ${remainingKas > 0 && showCostBasis ? `
@@ -539,7 +538,6 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
         <span class="summary-label">Current Value</span>
         <div class="summary-values">
           <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
-          <div class="summary-avg">${formatKAS(balance)} at ${formatUSD(currentPrice)}</div>
         </div>
       </div>` : ''}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
