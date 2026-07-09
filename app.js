@@ -501,8 +501,11 @@ function renderReceipt(tx, price) {
     </div>
 
     <div class="receipt-ref">
-      ${shortenHash(tx.transaction_id, 12)}
-      <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
+      <span class="receipt-ref-label">Transaction ID</span>
+      <div class="receipt-ref-hash">
+        ${shortenHash(tx.transaction_id, 12)}
+        <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
+      </div>
     </div>
 
   `;

@@ -249,15 +249,29 @@ label {
 
 .receipt-ref {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #e8e8e0;
+}
+
+.receipt-ref-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.receipt-ref-hash {
+  display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   color: #aeaeb2;
   font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1.5px dashed #e8e8e0;
 }
 
 
