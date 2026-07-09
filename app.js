@@ -12,6 +12,8 @@ const resultEl = $('result');
 const receiptCard = $('receipt-card');
 const statementCard = $('statement-card');
 let lastStatementAddress = null;
+let lastReceiptTx = null;
+let lastStatementData = null;
 let cachedPriceMap = null;
 
 function showLoading(show) {
@@ -275,6 +277,8 @@ function renderReceipt(tx, price) {
       <button class="btn-new" onclick="resetForm()">New Receipt</button>
     </div>
   `;
+  lastReceiptTx = tx;
+  lastStatementData = null;
 }
 
 function renderAddressStatement(txs, address, balance, priceMap) {
@@ -371,6 +375,8 @@ function renderAddressStatement(txs, address, balance, priceMap) {
   `;
 
   lastStatementAddress = address;
+  lastStatementData = { txs, address, balance };
+  lastReceiptTx = null;
   receiptCard.classList.add('hidden');
   statementCard.classList.remove('hidden');
 }
@@ -420,6 +426,8 @@ function resetForm() {
   receiptCard.classList.add('hidden');
   statementCard.classList.add('hidden');
   lastStatementAddress = null;
+  lastReceiptTx = null;
+  lastStatementData = null;
   hideError();
 }
 
@@ -465,12 +473,22 @@ async function handleGenerate() {
   }
 }
 
+function refreshUSD() {
+  if (!cachedPriceMap) return;
+  if (lastReceiptTx) {
+    const price = cachedPriceMap[getDateKey(lastReceiptTx.block_time)] ?? null;
+    renderReceipt(lastReceiptTx, price);
+  } else if (lastStatementData) {
+    renderAddressStatement(lastStatementData.txs, lastStatementData.address, lastStatementData.balance, cachedPriceMap);
+  }
+}
+
 function handleInput() {
   input.classList.remove('error');
   hideError();
 }
 
-fetchPriceMap().then(map => cachedPriceMap = map);
+fetchPriceMap().then(map => { cachedPriceMap = map; refreshUSD(); });
 
 receiptCard.addEventListener('click', (e) => {
   const btn = e.target.closest('.copy-btn');
