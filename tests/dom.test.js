@@ -50,11 +50,11 @@ describe('renderReceipt', () => {
     expect(card.innerHTML).toContain('Coinbase');
   });
 
-  it('includes Back to Statement button when statement exists', () => {
+  it('includes Back to History button when statement exists', () => {
     statement = { address: 'kaspa:test', balance: '0', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
     renderReceipt(mockTx, null);
     const card = document.getElementById('receipt-card');
-    expect(card.innerHTML).toContain('Back to Statement');
+    expect(card.innerHTML).toContain('Back to History');
     statement = null;
   });
 
@@ -81,7 +81,7 @@ describe('renderStatement', () => {
     statement = { address, balance: '500000000', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
-    expect(card.innerHTML).toContain('Kaspa Statement');
+    expect(card.innerHTML).toContain('Kaspa History');
     expect(card.innerHTML).toContain('5.00 KAS'); // balance
     expect(card.innerHTML).toContain('No transactions found');
     statement = null;
@@ -202,6 +202,14 @@ describe('renderStatement', () => {
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('New Search');
+    statement = null;
+  });
+
+  it('includes Export button', () => {
+    statement = { address, balance: '0', txs: [], fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    renderStatement();
+    const card = document.getElementById('statement-card');
+    expect(card.innerHTML).toContain('Export');
     statement = null;
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── formatNumber ──────────────────────────────────────────────
 
@@ -260,6 +260,75 @@ describe('copyToClipboard', () => {
     expect(btn.classList.contains('copied')).toBe(true);
 
     navigator.clipboard.writeText = writeText;
+  });
+});
+
+// ─── exportCSV ────────────────────────────────────────────────
+
+describe('exportCSV', () => {
+  beforeEach(() => {
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock');
+    globalThis.URL.revokeObjectURL = vi.fn();
+    globalThis.statement = null;
+    globalThis.priceMap = null;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    globalThis.statement = null;
+    globalThis.priceMap = null;
+  });
+
+  it('creates a download link with correct filename', () => {
+    const address = 'kaspa:' + 'a'.repeat(61);
+    const txs = [{
+      transaction_id: 'a'.repeat(64),
+      is_accepted: true,
+      block_time: 1704067200000,
+      inputs: [{ previous_outpoint_address: 'kaspa:sender' }],
+      outputs: [{ script_public_key_address: address, amount: '100000000' }],
+    }];
+    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    exportCSV();
+
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const link = appendSpy.mock.calls[0][0];
+    expect(link.tagName).toBe('A');
+    expect(link.download).toBe('kaspa-history-2024-01-01-2024-12-31.csv');
+    expect(link.href).toBe('blob:mock');
+  });
+
+  it('includes CSV content from sent txs', () => {
+    const address = 'kaspa:' + 'a'.repeat(61);
+    const txs = [{
+      transaction_id: 'b'.repeat(64),
+      is_accepted: true,
+      block_time: 1704067200000,
+      inputs: [{ previous_outpoint_address: address }],
+      outputs: [
+        { script_public_key_address: address, amount: '100000000' },
+        { script_public_key_address: 'kaspa:other', amount: '200000000' },
+      ],
+    }];
+    statement = { address, balance: '100000000', txs, fromDate: '2024-01-01', toDate: '2024-12-31', page: 0 };
+    priceMap = { '2024-0-1': 0.5 };
+
+    const BlobOrig = globalThis.Blob;
+    let capturedArgs;
+    globalThis.Blob = vi.fn((...args) => { capturedArgs = args; return new BlobOrig(...args); });
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock');
+
+    exportCSV();
+
+    const content = capturedArgs[0][0];
+    expect(content).toContain('Date,Direction,Amount (KAS),USD Value,Counterparty,Transaction ID,Status');
+    expect(content).toContain('Sent');
+    expect(content).toContain('2');
+    expect(content).toContain('$1.00');
+    expect(content).toContain('kaspa:other');
+    expect(content).toContain('Confirmed');
   });
 });
 

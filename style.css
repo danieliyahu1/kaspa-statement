@@ -511,6 +511,17 @@ label {
   color: var(--kaspa-teal);
 }
 
+.btn-export {
+  background: var(--kaspa-teal);
+  color: #fff;
+  border: 1.5px solid var(--kaspa-teal);
+}
+
+.btn-export:hover {
+  background: var(--kaspa-teal-dark);
+  border-color: var(--kaspa-teal-dark);
+}
+
 /* ── Statement View ── */
 
 #statement-card.hidden {

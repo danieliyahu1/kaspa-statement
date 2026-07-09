@@ -339,7 +339,7 @@ function renderReceipt(tx, price) {
     </div>
 
     <div class="receipt-actions">
-      ${statement ? '<button class="btn-back" id="back-btn">Back to Statement</button>' : ''}
+      ${statement ? '<button class="btn-back" id="back-btn">Back to History</button>' : ''}
       <button class="btn-new" id="new-receipt-btn">New Receipt</button>
     </div>
   `;
@@ -396,6 +396,48 @@ function renderNetSummary(txs, address) {
       ${hasUsd && hadMissingPrice ? `<div class="summary-note">No price data prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
+}
+
+function exportCSV() {
+  if (!statement) { warn('exportCSV called but statement is null'); return; }
+  const { address, txs, fromDate, toDate } = statement;
+
+  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status'];
+  const rows = txs.map(tx => {
+    const direction = getTxDirection(tx, address);
+    const counterparty = getCounterparty(tx, address, direction);
+    const amount = getTxAmount(tx, address, direction);
+    const kas = getKasAmount(amount);
+    const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+    const usd = price ? formatUSD(kas * price) : '';
+    const status = tx.is_accepted ? 'Confirmed' : 'Pending';
+    return [
+      formatShortDate(tx.block_time),
+      direction === 'sent' ? 'Sent' : (direction === 'self' ? 'Self' : 'Received'),
+      kas,
+      usd,
+      counterparty,
+      tx.transaction_id,
+      status
+    ];
+  });
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => {
+      const str = String(cell);
+      return (str.includes(',') || str.includes('"') || str.includes('\n')) ? `"${str.replace(/"/g, '""')}"` : str;
+    }).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `kaspa-history-${fromDate}-${toDate}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+  log('CSV exported:', link.download);
 }
 
 function buildPagination(current, total) {
@@ -480,7 +522,7 @@ function renderStatement() {
 
   statementCard.innerHTML = `
     <div class="statement-header">
-      <h2>Kaspa Statement</h2>
+      <h2>Kaspa History</h2>
       <div class="statement-address">
         ${shortenHash(address, 12)}
         <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
@@ -497,6 +539,7 @@ function renderStatement() {
     </div>
     ${buildPagination(page, totalPages)}
     <div class="receipt-actions">
+      <button class="btn-export" id="export-csv-btn">Export</button>
       <button class="btn-new" id="search-btn">New Search</button>
     </div>
   `;
@@ -679,6 +722,12 @@ function initEventListeners() {
       const page = parseInt(pageBtn.dataset.page);
       log('Page button clicked:', page);
       goToPage(page);
+      return;
+    }
+
+    if (e.target.closest('#export-csv-btn')) {
+      log('Export CSV clicked');
+      exportCSV();
       return;
     }
 
