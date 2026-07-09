@@ -314,15 +314,25 @@ async function fetchAllTxsFromGenesis(address, onPage) {
   if (onPage) onPage([...allTxs], pageNum, totalPages, total);
 
   if (nextBefore) {
-    showLoading(true, `Fetching remaining transactions\u2026`);
+    const totalRemaining = totalPages - 1;
+    showLoading(true, `${totalRemaining} page${totalRemaining !== 1 ? 's' : ''} remaining`);
     const promises = [];
+    let done = 0;
     let offset = 500;
     while (offset < total) {
+      const off = offset;
       promises.push(
-        fetchAddressTxsOffset(address, offset, 500).catch(err => {
-          error('Parallel fetch failed at offset', offset, err.message);
-          return [];
-        })
+        fetchAddressTxsOffset(address, off, 500)
+          .catch(err => {
+            error('Parallel fetch failed at offset', off, err.message);
+            return [];
+          })
+          .then(txs => {
+            done++;
+            const left = totalRemaining - done;
+            if (left > 0) showLoading(true, `${left} page${left !== 1 ? 's' : ''} remaining`);
+            return txs;
+          })
       );
       offset += 500;
     }
