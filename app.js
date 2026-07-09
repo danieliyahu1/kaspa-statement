@@ -1,6 +1,8 @@
 const API_BASE = 'https://api.kaspa.org';
 const TX_HASH_REGEX = /^[a-f0-9]{64}$/;
 const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
+const PAGE_SIZE = 50;
+const CHUNK_SIZE = 500;
 
 const $ = (id) => document.getElementById(id);
 
@@ -15,6 +17,10 @@ let lastStatementAddress = null;
 let lastReceiptTx = null;
 let lastStatementData = null;
 let cachedPriceMap = null;
+let allTxs = [];
+let totalTxCount = 0;
+let currentPage = 0;
+let balance = 0;
 
 function showLoading(show) {
   loadingEl.classList.toggle('hidden', !show);
@@ -95,17 +101,24 @@ async function fetchAddressBalance(address) {
   return data.balance;
 }
 
-async function fetchAddressTransactions(address) {
-  const params = new URLSearchParams({
-    limit: '50',
-    resolve_previous_outpoints: 'light'
-  });
-  const res = await fetch(`${API_BASE}/addresses/${address}/full-transactions?${params}`);
+async function fetchAddressTxCount(address) {
+  const res = await fetch(`${API_BASE}/addresses/${address}/transactions-count`);
+  if (!res.ok) throw new Error('Could not fetch transaction count.');
+  const data = await res.json();
+  return data.total;
+}
+
+async function fetchAddressTxPage(address, before = null) {
+  let url = `${API_BASE}/addresses/${address}/full-transactions-page?limit=${CHUNK_SIZE}&resolve_previous_outpoints=light`;
+  if (before) url += `&before=${before}`;
+  const res = await fetch(url);
   if (!res.ok) {
     if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
     throw new Error('The Kaspa network is currently unavailable. Please try again.');
   }
-  return res.json();
+  const txs = await res.json();
+  const nextBefore = res.headers.get('X-Next-Page-Before');
+  return { txs, nextBefore: nextBefore ? parseInt(nextBefore) : null };
 }
 
 const BYBIT_BASE = 'https://api.bybit.com';
@@ -281,29 +294,19 @@ function renderReceipt(tx, price) {
   lastStatementData = null;
 }
 
-function renderAddressStatement(txs, address, balance, priceMap) {
-  const sorted = [...txs].sort((a, b) => b.block_time - a.block_time);
-
-  let totalReceived = 0;
-  let totalSent = 0;
-  let usdReceived = 0;
-  let usdSent = 0;
+function renderAddressStatement(address, bal, page, priceMap) {
+  const start = page * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, allTxs.length);
+  const pageTxs = allTxs.slice(start, end);
+  const totalPages = Math.ceil(totalTxCount / PAGE_SIZE);
   let txRows = '';
 
-  sorted.forEach((tx) => {
+  pageTxs.forEach((tx) => {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
     const amount = getTxAmount(tx, address, direction);
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     const usdAmount = price ? getKasAmount(amount) * price : null;
-
-    if (direction === 'received') {
-      totalReceived += amount;
-      if (usdAmount) usdReceived += usdAmount;
-    } else if (direction === 'sent') {
-      totalSent += amount;
-      if (usdAmount) usdSent += usdAmount;
-    }
 
     const isSent = direction === 'sent';
     const symbol = isSent ? '&#8599;' : '&#8600;';
@@ -334,40 +337,26 @@ function renderAddressStatement(txs, address, balance, priceMap) {
     `;
   });
 
-  const net = totalReceived - totalSent;
-  const netUsd = usdReceived - usdSent;
+  const loadingEl = allTxs.length < totalTxCount
+    ? `<span class="loading-txs">Loading ${formatNumber(allTxs.length)} of ${formatNumber(totalTxCount)} transactions…</span>`
+    : '';
 
   statementCard.innerHTML = `
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
       <div class="statement-address">${shortenHash(address, 16)}</div>
-      <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-card received">
-        <span class="summary-label">Received</span>
-        <span class="summary-value">${formatKAS(totalReceived)}</span>
-        ${usdReceived ? `<span class="summary-usd">${formatUSD(usdReceived)}</span>` : `<span class="summary-usd na">—</span>`}
-      </div>
-      <div class="summary-card sent">
-        <span class="summary-label">Sent</span>
-        <span class="summary-value">${formatKAS(totalSent)}</span>
-        ${usdSent ? `<span class="summary-usd">${formatUSD(usdSent)}</span>` : `<span class="summary-usd na">—</span>`}
-      </div>
-      <div class="summary-card ${net >= 0 ? 'net-positive' : 'net-negative'}">
-        <span class="summary-label">Net</span>
-        <span class="summary-value">${net >= 0 ? '+' : ''}${formatKAS(net)}</span>
-        ${netUsd ? `<span class="summary-usd">${netUsd >= 0 ? '+' : ''}${formatUSD(netUsd)}</span>` : `<span class="summary-usd na">—</span>`}
-      </div>
+      <div class="statement-balance">Balance: <strong>${formatKAS(bal)}</strong></div>
     </div>
 
     <div class="tx-list">
       <div class="tx-list-header">
-        <span>${sorted.length} transaction${sorted.length !== 1 ? 's' : ''}</span>
+        <span>${formatNumber(totalTxCount)} transaction${totalTxCount !== 1 ? 's' : ''}</span>
+        ${loadingEl}
       </div>
       ${txRows || '<div class="tx-empty">No transactions found.</div>'}
     </div>
+
+    ${buildPagination(page, totalPages)}
 
     <div class="receipt-actions">
       <button class="btn-new" onclick="resetForm()">New Search</button>
@@ -375,10 +364,67 @@ function renderAddressStatement(txs, address, balance, priceMap) {
   `;
 
   lastStatementAddress = address;
-  lastStatementData = { txs, address, balance };
+  lastStatementData = { address, balance: bal, page };
   lastReceiptTx = null;
+  currentPage = page;
   receiptCard.classList.add('hidden');
   statementCard.classList.remove('hidden');
+}
+
+function buildPagination(current, total) {
+  if (total <= 1) return '';
+
+  let html = '<div class="pagination">';
+
+  html += `<button class="page-btn" onclick="goToPage(${current - 1})" ${current === 0 ? 'disabled' : ''}>&#171; Prev</button>`;
+
+  const maxVisible = 7;
+  let start = Math.max(0, current - Math.floor(maxVisible / 2));
+  let end = Math.min(total - 1, start + maxVisible - 1);
+  if (end - start < maxVisible - 1) {
+    start = Math.max(0, end - maxVisible + 1);
+  }
+
+  if (start > 0) {
+    html += `<button class="page-btn" onclick="goToPage(0)">1</button>`;
+    if (start > 1) html += '<span class="page-ellipsis">&#8230;</span>';
+  }
+
+  for (let i = start; i <= end; i++) {
+    const loaded = (i + 1) * PAGE_SIZE <= allTxs.length;
+    html += `<button class="page-btn${i === current ? ' active' : ''}${!loaded ? ' loading' : ''}" onclick="goToPage(${i})">${i + 1}</button>`;
+  }
+
+  if (end < total - 1) {
+    if (end < total - 2) html += '<span class="page-ellipsis">&#8230;</span>';
+    html += `<button class="page-btn" onclick="goToPage(${total - 1})">${total}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goToPage(${current + 1})" ${current >= total - 1 ? 'disabled' : ''}>Next &#187;</button>`;
+
+  html += '</div>';
+  return html;
+}
+
+async function loadAllTransactions(address, before) {
+  while (allTxs.length < totalTxCount) {
+    const { txs, nextBefore } = await fetchAddressTxPage(address, before);
+    if (!txs.length) break;
+    allTxs.push(...txs);
+    if (lastStatementAddress === address) {
+      renderAddressStatement(address, balance, currentPage, cachedPriceMap);
+    }
+    if (!nextBefore) break;
+    before = nextBefore;
+  }
+}
+
+function goToPage(page) {
+  if (!lastStatementAddress) return;
+  const totalPages = Math.ceil(totalTxCount / PAGE_SIZE);
+  if (page < 0 || page >= totalPages) return;
+  if (page * PAGE_SIZE >= allTxs.length) return;
+  renderAddressStatement(lastStatementAddress, balance, page, cachedPriceMap);
 }
 
 async function showStatement() {
@@ -388,11 +434,9 @@ async function showStatement() {
   }
   showLoading(true);
   try {
-    const [balance, txs] = await Promise.all([
-      fetchAddressBalance(lastStatementAddress),
-      fetchAddressTransactions(lastStatementAddress)
-    ]);
-    renderAddressStatement(txs, lastStatementAddress, balance, cachedPriceMap);
+    const bal = await fetchAddressBalance(lastStatementAddress);
+    balance = bal;
+    renderAddressStatement(lastStatementAddress, balance, currentPage, cachedPriceMap);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -428,6 +472,10 @@ function resetForm() {
   lastStatementAddress = null;
   lastReceiptTx = null;
   lastStatementData = null;
+  allTxs = [];
+  totalTxCount = 0;
+  currentPage = 0;
+  balance = 0;
   hideError();
 }
 
@@ -455,11 +503,22 @@ async function handleGenerate() {
       const price = cachedPriceMap ? cachedPriceMap[getDateKey(tx.block_time)] : null;
       renderReceipt(tx, price);
     } else if (ADDRESS_REGEX.test(raw)) {
-      const [balance, txs] = await Promise.all([
+      lastStatementAddress = null;
+      allTxs = [];
+      totalTxCount = 0;
+      currentPage = 0;
+      const [bal, count, firstPage] = await Promise.all([
         fetchAddressBalance(raw),
-        fetchAddressTransactions(raw)
+        fetchAddressTxCount(raw),
+        fetchAddressTxPage(raw)
       ]);
-      renderAddressStatement(txs, raw, balance, cachedPriceMap);
+      balance = bal;
+      totalTxCount = count;
+      allTxs = firstPage.txs;
+      renderAddressStatement(raw, balance, 0, cachedPriceMap);
+      if (allTxs.length < totalTxCount && firstPage.nextBefore) {
+        loadAllTransactions(raw, firstPage.nextBefore);
+      }
     } else {
       showError('Invalid format. Enter a 64-character transaction hash or a kaspa: address.');
       return;
@@ -479,7 +538,7 @@ function refreshUSD() {
     const price = cachedPriceMap[getDateKey(lastReceiptTx.block_time)] ?? null;
     renderReceipt(lastReceiptTx, price);
   } else if (lastStatementData) {
-    renderAddressStatement(lastStatementData.txs, lastStatementData.address, lastStatementData.balance, cachedPriceMap);
+    renderAddressStatement(lastStatementData.address, lastStatementData.balance, lastStatementData.page, cachedPriceMap);
   }
 }
 

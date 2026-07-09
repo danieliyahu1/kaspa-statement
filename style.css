@@ -535,74 +535,11 @@ label {
   color: #ff8c00;
 }
 
-.summary-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.summary-card {
-  flex: 1;
-  background: #f5f5f7;
-  border-radius: 10px;
-  padding: 14px 12px;
-  text-align: center;
-}
-
-.summary-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #8c8c8c;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1d1d1f;
-}
-
-.summary-usd {
-  display: block;
-  font-size: 11px;
-  font-weight: 500;
-  color: #6e6e73;
-  margin-top: 2px;
-}
-
-.summary-card.received .summary-value {
-  color: #389e0d;
-}
-
-.summary-card.sent .summary-value {
-  color: #d48806;
-}
-
-.summary-card.net-positive .summary-value {
-  color: #389e0d;
-}
-
-.summary-card.net-negative .summary-value {
-  color: #cf1322;
-}
-
 .tx-list {
   border-top: 1.5px dashed #e8e8e0;
   padding-top: 12px;
 }
 
-.tx-list-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: #aeaeb2;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
 
 .tx-row {
   display: flex;
@@ -722,6 +659,76 @@ footer a:hover {
   color: #6e6e73;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  background: #fff;
+  border: 1px solid #d2d2d7;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  min-width: 32px;
+  text-align: center;
+}
+
+.page-btn:hover:not(:disabled):not(.active) {
+  background: #f5f5f7;
+  border-color: #aeaeb2;
+}
+
+.page-btn.active {
+  background: #ff8c00;
+  border-color: #ff8c00;
+  color: #fff;
+}
+
+.page-btn:disabled {
+  color: #aeaeb2;
+  cursor: not-allowed;
+  background: #f5f5f7;
+}
+
+.page-btn.loading {
+  color: #aeaeb2;
+  cursor: default;
+}
+
+.page-ellipsis {
+  color: #aeaeb2;
+  font-size: 12px;
+  padding: 0 2px;
+  letter-spacing: 1px;
+}
+
+.loading-txs {
+  font-size: 11px;
+  color: #aeaeb2;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.tx-list-header {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #aeaeb2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
 @media (max-width: 480px) {
   main {
     padding: 32px 16px 24px;
@@ -753,10 +760,5 @@ footer a:hover {
 
   .receipt-actions {
     flex-direction: column;
-  }
-
-  .summary-row {
-    flex-direction: column;
-    gap: 6px;
   }
 }
