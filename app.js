@@ -167,9 +167,9 @@ async function fetchPriceMap() {
 
 function getTxDirection(tx, address) {
   const isSender = tx.inputs && tx.inputs.some(i => i.previous_outpoint_address === address);
-  const isReceiver = tx.outputs && tx.outputs.some(o => o.script_public_key_address === address);
-  if (isSender && isReceiver) return 'self';
-  if (isSender) return 'sent';
+  const hasExternalOutput = tx.outputs && tx.outputs.some(o => o.script_public_key_address !== address);
+  if (isSender && hasExternalOutput) return 'sent';
+  if (isSender) return 'self';
   return 'received';
 }
 
