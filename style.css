@@ -476,6 +476,30 @@ label {
   display: none;
 }
 
+.copy-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid #d2d2d7;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 3px 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.copy-btn:hover {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.copy-btn.copied {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
+}
+
 #statement-card {
   background: #fefef7;
   border-radius: 16px;
@@ -503,11 +527,14 @@ label {
 }
 
 .statement-address {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: #515154;
   font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   margin-bottom: 8px;
-  word-break: break-all;
 }
 
 .statement-balance {

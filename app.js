@@ -48,6 +48,13 @@ function formatDate(epochMs) {
   });
 }
 
+function formatShortDate(epochMs) {
+  const d = new Date(epochMs);
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric'
+  });
+}
+
 function formatNumber(n) {
   return Number(n).toLocaleString('en-US');
 }
@@ -63,6 +70,17 @@ function formatKAS(sompi) {
 function shortenHash(hash, chars = 8) {
   if (hash.length <= chars * 2) return hash;
   return hash.slice(0, chars) + '\u2026' + hash.slice(-chars);
+}
+
+function copyToClipboard(text, btnEl) {
+  navigator.clipboard.writeText(text).then(() => {
+    btnEl.textContent = 'Copied!';
+    btnEl.classList.add('copied');
+    setTimeout(() => {
+      btnEl.textContent = 'Copy';
+      btnEl.classList.remove('copied');
+    }, 2000);
+  });
 }
 
 function formatUSD(amount) {
@@ -382,14 +400,14 @@ function renderStatement() {
       ? counterparty.slice(0, 16) + '\u2026' + counterparty.slice(-6)
       : counterparty;
 
-    const status = tx.is_accepted
-      ? '<span class="tx-status confirmed">Confirmed</span>'
-      : '<span class="tx-status unconfirmed">Pending</span>';
+    const status = !tx.is_accepted
+      ? '<span class="tx-status unconfirmed">Pending</span>'
+      : '';
 
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
-          <span class="tx-date">${formatDate(tx.block_time)}</span>
+          <span class="tx-date">${formatShortDate(tx.block_time)}</span>
           <span class="tx-counter">${escapeHtml(counterShort)}</span>
         </div>
         <div class="tx-right">
@@ -405,9 +423,11 @@ function renderStatement() {
   statementCard.innerHTML = `
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
-      <div class="statement-address">${escapeHtml(address)}</div>
+      <div class="statement-address">
+        ${shortenHash(address, 16)}
+        <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
+      </div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
-      ${summaryHtml}
     </div>
     <div class="tx-list">
       <div class="tx-list-header">
@@ -416,6 +436,7 @@ function renderStatement() {
       </div>
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
     </div>
+    ${summaryHtml}
     ${buildPagination(page, totalPages)}
     <div class="receipt-actions">
       <button class="btn-new" id="search-btn">New Search</button>
@@ -556,7 +577,6 @@ function initEventListeners() {
   button.addEventListener('click', handleGenerate);
 
   receiptCard.addEventListener('click', (e) => {
-    const btn = e.target.closest('.copy-btn');
     if (e.target.closest('#back-btn') && statement) {
       renderStatement();
       resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -569,6 +589,9 @@ function initEventListeners() {
   });
 
   statementCard.addEventListener('click', (e) => {
+    const copyBtn = e.target.closest('.copy-btn');
+    if (copyBtn && copyBtn.dataset.copy) { copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
+
     const row = e.target.closest('.tx-row');
     if (row && row.dataset.txId) { showTxDetail(row.dataset.txId); return; }
 
