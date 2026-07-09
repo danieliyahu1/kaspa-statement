@@ -215,14 +215,14 @@ function renderReceipt(tx, price) {
   const usdTotal = price ? totalKas * price : null;
 
   receiptCard.innerHTML = `
-      <div class="receipt-header">
+    <div class="receipt-header">
       <h2>Kaspa Receipt</h2>
-      <div class="receipt-id">${tx.transaction_id}</div>
-      <div class="receipt-status">
-        <span class="status-badge ${accepted ? 'accepted' : 'pending'}">
-          ${accepted ? '<span class="check">&#10003;</span> Confirmed' : '<span class="check">&#9679;</span> Pending'}
-        </span>
-      </div>
+    </div>
+
+    <div class="receipt-status">
+      <span class="status-badge ${accepted ? 'accepted' : 'pending'}">
+        ${accepted ? '<span class="check">&#10003;</span> Confirmed' : '<span class="check">&#9679;</span> Pending'}
+      </span>
     </div>
 
     <div class="receipt-meta">
@@ -263,6 +263,8 @@ function renderReceipt(tx, price) {
         ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : '<span class="total-usd na">— USD</span>'}
       </div>
     </div>
+
+    <div class="receipt-ref">${tx.transaction_id}</div>
 
     <div class="receipt-actions">
       ${statement ? '<button class="btn-back" id="back-btn">Back to Statement</button>' : ''}

@@ -256,7 +256,6 @@ label {
 
 .receipt-header {
   text-align: center;
-  margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1.5px dashed #e8e8e0;
 }
@@ -269,16 +268,20 @@ label {
   color: #1d1d1f;
 }
 
-.receipt-header .receipt-id {
-  font-size: 11px;
-  color: #515154;
-  margin-top: 4px;
-  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-  word-break: break-all;
+.receipt-status {
+  text-align: center;
+  margin-bottom: 20px;
 }
 
-.receipt-status {
-  margin-top: 8px;
+.receipt-ref {
+  text-align: center;
+  font-size: 11px;
+  color: #aeaeb2;
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  word-break: break-all;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #e8e8e0;
 }
 
 
