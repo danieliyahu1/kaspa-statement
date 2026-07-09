@@ -4,6 +4,18 @@ const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
 const PAGE_SIZE = 50;
 const BYBIT_BASE = 'https://api.bybit.com';
 
+function log(...args) {
+  console.log('[Kaspa Receipts]', ...args);
+}
+
+function warn(...args) {
+  console.warn('[Kaspa Receipts]', ...args);
+}
+
+function error(...args) {
+  console.error('[Kaspa Receipts]', ...args);
+}
+
 const $ = (id) => document.getElementById(id);
 
 const input = $('tx-input');
@@ -23,6 +35,7 @@ let statement = null;
 let priceMap = null;
 
 function showLoading(show, text) {
+  log(`${show ? 'Showing' : 'Hiding'} loading state${text ? ': ' + text : ''}`);
   loadingEl.classList.toggle('hidden', !show);
   button.classList.toggle('loading', show);
   button.disabled = show;
@@ -30,6 +43,7 @@ function showLoading(show, text) {
 }
 
 function showError(message) {
+  warn('Showing error:', message);
   errorEl.textContent = message;
   errorEl.classList.remove('hidden');
   resultEl.classList.add('hidden');
@@ -104,6 +118,7 @@ function escapeHtml(str) {
 }
 
 async function fetchTransaction(txId) {
+  log('Fetching transaction:', txId);
   const params = new URLSearchParams({
     inputs: 'true',
     outputs: 'true',
@@ -113,38 +128,55 @@ async function fetchTransaction(txId) {
 
   const res = await fetch(url);
   if (!res.ok) {
+    error('Transaction fetch failed:', res.status, res.statusText);
     if (res.status === 404) throw new Error('Transaction not found. Check the hash and try again.');
     if (res.status === 422) throw new Error('Invalid transaction hash format.');
     throw new Error('The Kaspa network is currently unavailable. Please try again.');
   }
-  return res.json();
+  const data = await res.json();
+  log('Transaction fetched:', txId, 'accepted:', data.is_accepted, 'time:', data.block_time);
+  return data;
 }
 
 async function fetchAddressBalance(address) {
+  log('Fetching balance for address:', address);
   const res = await fetch(`${API_BASE}/addresses/${address}/balance`);
   if (!res.ok) {
+    error('Balance fetch failed:', res.status, res.statusText);
     throw new Error('Could not fetch address balance.');
   }
   const data = await res.json();
+  log('Address balance:', address, 'balance:', data.balance);
   return data.balance;
 }
 
 async function fetchAddressTxs(address, offset = 0) {
   const url = `${API_BASE}/addresses/${address}/full-transactions?limit=${PAGE_SIZE}&offset=${offset}&resolve_previous_outpoints=light`;
+  log('Fetching address txs:', address, 'offset:', offset);
   const res = await fetch(url);
   if (!res.ok) {
+    error('Address txs fetch failed:', res.status, res.statusText);
     if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
     throw new Error('The Kaspa network is currently unavailable. Please try again.');
   }
-  return res.json();
+  const data = await res.json();
+  log('Address txs page:', offset, 'count:', data.length);
+  return data;
 }
 
 async function fetchPriceMap() {
+  log('Fetching price map from Bybit...');
   try {
     const res = await fetch(`${BYBIT_BASE}/v5/market/kline?category=spot&symbol=KASUSDT&interval=D&limit=1000`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      warn('Price fetch returned', res.status);
+      return null;
+    }
     const json = await res.json();
-    if (json.retCode !== 0 || !json.result?.list) return null;
+    if (json.retCode !== 0 || !json.result?.list) {
+      warn('Price API returned unexpected response:', json.retCode);
+      return null;
+    }
     const map = {};
     const todayKey = getDateKey(Date.now());
     let earliestTs = Infinity;
@@ -155,8 +187,10 @@ async function fetchPriceMap() {
       if (ts < earliestTs) earliestTs = ts;
     });
     if (earliestTs !== Infinity) map._earliest = earliestTs;
+    log('Price map loaded. Entries:', Object.keys(map).length, 'earliest:', map._earliest ? formatShortDate(map._earliest) : 'N/A');
     return map;
-  } catch {
+  } catch (e) {
+    warn('Price map fetch failed:', e.message);
     return null;
   }
 }
@@ -164,9 +198,9 @@ async function fetchPriceMap() {
 function getTxDirection(tx, address) {
   const isSender = tx.inputs && tx.inputs.some(i => i.previous_outpoint_address === address);
   const hasExternalOutput = tx.outputs && tx.outputs.some(o => o.script_public_key_address !== address);
-  if (isSender && hasExternalOutput) return 'sent';
-  if (isSender) return 'self';
-  return 'received';
+  const direction = isSender && hasExternalOutput ? 'sent' : isSender ? 'self' : 'received';
+  log('Tx direction:', direction, 'for tx', tx.transaction_id?.slice(0, 12));
+  return direction;
 }
 
 function getCounterparty(tx, address, direction) {
@@ -198,13 +232,17 @@ function getTxAmount(tx, address, direction) {
 }
 
 async function fetchAllAddressTxs(address, fromMs, toMs) {
+  log('Fetching all address txs:', address, 'from:', new Date(fromMs).toISOString(), 'to:', new Date(toMs).toISOString());
   const allTxs = [];
   let offset = 0;
   let done = false;
 
   while (!done) {
     const page = await fetchAddressTxs(address, offset);
-    if (!page || page.length === 0) break;
+    if (!page || page.length === 0) {
+      log('No more pages returned, stopping');
+      break;
+    }
 
     for (const tx of page) {
       if (tx.block_time < fromMs) { done = true; break; }
@@ -215,14 +253,17 @@ async function fetchAllAddressTxs(address, fromMs, toMs) {
 
     offset += page.length;
     loadingText.textContent = `Fetching transactions\u2026 page ${Math.ceil(offset / PAGE_SIZE)} (${allTxs.length} found)`;
+    log('Fetched page, total collected:', allTxs.length, 'offset:', offset);
 
     if (page.length < PAGE_SIZE || done) break;
   }
 
+  log('All txs fetched. Total:', allTxs.length);
   return allTxs;
 }
 
 function renderReceipt(tx, price) {
+  log('Rendering receipt for tx:', tx.transaction_id?.slice(0, 12), 'price:', price);
   receiptTx = { tx, price };
   receiptCard.classList.remove('hidden');
   const accepted = tx.is_accepted;
@@ -392,7 +433,7 @@ function buildPagination(current, total) {
 }
 
 function renderStatement() {
-  if (!statement) return;
+  if (!statement) { warn('renderStatement called but statement is null'); return; }
   const { address, balance, txs, fromDate, toDate, page } = statement;
   const startIdx = page * PAGE_SIZE;
   const pageTxs = txs.slice(startIdx, startIdx + PAGE_SIZE);
@@ -465,14 +506,16 @@ function renderStatement() {
 }
 
 function goToPage(page) {
-  if (!statement) return;
+  if (!statement) { warn('goToPage called but statement is null'); return; }
   const totalPages = Math.ceil(statement.txs.length / PAGE_SIZE);
-  if (page < 0 || page >= totalPages) return;
+  if (page < 0 || page >= totalPages) { warn('goToPage: invalid page', page, 'totalPages:', totalPages); return; }
+  log('Going to page:', page);
   statement.page = page;
   renderStatement();
 }
 
 async function showTxDetail(txId) {
+  log('Showing tx detail:', txId);
   showLoading(true);
   try {
     const tx = await fetchTransaction(txId);
@@ -481,6 +524,7 @@ async function showTxDetail(txId) {
     receiptCard.classList.remove('hidden');
     renderReceipt(tx, price);
   } catch (err) {
+    error('showTxDetail error:', err.message);
     showError(err.message);
   } finally {
     showLoading(false);
@@ -488,7 +532,8 @@ async function showTxDetail(txId) {
 }
 
 function refreshUSD() {
-  if (!priceMap) return;
+  if (!priceMap) { log('refreshUSD: no price map, skipping'); return; }
+  log('refreshUSD: refreshing USD values');
   if (receiptTx) {
     const price = priceMap[getDateKey(receiptTx.tx.block_time)] ?? null;
     renderReceipt(receiptTx.tx, price);
@@ -507,6 +552,7 @@ function setDefaultDateRange() {
 }
 
 function resetForm() {
+  log('Resetting form');
   input.value = '';
   input.focus();
   resultEl.classList.add('hidden');
@@ -520,6 +566,7 @@ function resetForm() {
 
 async function handleGenerate() {
   const raw = input.value.trim().toLowerCase();
+  log('handleGenerate triggered with input:', raw);
   hideError();
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
@@ -537,15 +584,18 @@ async function handleGenerate() {
 
   try {
     if (TX_HASH_REGEX.test(raw)) {
+      log('Input matched TX hash pattern');
       receiptTx = null;
       statement = null;
       const tx = await fetchTransaction(raw);
       const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
       renderReceipt(tx, price);
     } else if (ADDRESS_REGEX.test(raw)) {
+      log('Input matched address pattern');
       statement = null;
       const fromDate = fromDateInput.value;
       const toDate = toDateInput.value;
+      log('Date range:', fromDate, 'to', toDate);
       if (!fromDate || !toDate) {
         showError('Please select a date range for address lookups.');
         showLoading(false);
@@ -558,13 +608,16 @@ async function handleGenerate() {
       }
       const fromMs = new Date(fromDate + 'T00:00:00').getTime();
       const toMs = new Date(toDate + 'T23:59:59').getTime();
+      log('Date range in ms:', fromMs, 'to', toMs);
       const [bal, txs] = await Promise.all([
         fetchAddressBalance(raw),
         fetchAllAddressTxs(raw, fromMs, toMs)
       ]);
+      log('Statement data: balance:', bal, 'tx count:', txs.length);
       statement = { address: raw, balance: bal, txs, fromDate, toDate, page: 0 };
       renderStatement();
     } else {
+      warn('Input did not match TX hash or address pattern');
       showError('That doesn\'t look like a Kaspa transaction or address. Try again.');
       showLoading(false);
       return;
@@ -572,6 +625,7 @@ async function handleGenerate() {
     resultEl.classList.remove('hidden');
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
+    error('handleGenerate error:', err.message);
     showError(err.message);
   } finally {
     showLoading(false);
@@ -579,9 +633,10 @@ async function handleGenerate() {
 }
 
 function handleInput() {
+  const val = input.value.trim().toLowerCase();
+  log('Input changed:', val);
   input.classList.remove('error');
   hideError();
-  const val = input.value.trim().toLowerCase();
   if (val.startsWith('kaspa:')) {
     dateRangeSection.classList.remove('hidden');
   } else {
@@ -590,21 +645,24 @@ function handleInput() {
 }
 
 function initEventListeners() {
+  log('Initializing event listeners');
   input.addEventListener('input', handleInput);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleGenerate(); });
   button.addEventListener('click', handleGenerate);
 
   receiptCard.addEventListener('click', (e) => {
     const copyBtn = e.target.closest('.copy-btn');
-    if (copyBtn && copyBtn.dataset.copy) { copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
+    if (copyBtn && copyBtn.dataset.copy) { log('Copy clicked:', copyBtn.dataset.copy.slice(0, 12)); copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
 
     if (e.target.closest('#back-btn') && statement) {
+      log('Back to statement clicked');
       renderStatement();
       resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
 
     if (e.target.closest('#new-receipt-btn')) {
+      log('New receipt clicked');
       resetForm();
     }
   });
@@ -614,20 +672,29 @@ function initEventListeners() {
     if (copyBtn && copyBtn.dataset.copy) { copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
 
     const row = e.target.closest('.tx-row');
-    if (row && row.dataset.txId) { showTxDetail(row.dataset.txId); return; }
+    if (row && row.dataset.txId) { log('Tx row clicked:', row.dataset.txId); showTxDetail(row.dataset.txId); return; }
 
     const pageBtn = e.target.closest('.page-btn');
     if (pageBtn && !pageBtn.disabled && pageBtn.dataset.page !== undefined) {
-      goToPage(parseInt(pageBtn.dataset.page));
+      const page = parseInt(pageBtn.dataset.page);
+      log('Page button clicked:', page);
+      goToPage(page);
       return;
     }
 
     if (e.target.closest('#search-btn')) {
+      log('New search clicked');
       resetForm();
     }
   });
 }
 
+log('App starting...');
 setDefaultDateRange();
-fetchPriceMap().then(map => { priceMap = map; refreshUSD(); });
+fetchPriceMap().then(map => {
+  log('Price map initialization complete. Available:', !!map);
+  priceMap = map;
+  refreshUSD();
+});
 initEventListeners();
+log('App initialized.');
