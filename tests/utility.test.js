@@ -95,14 +95,14 @@ describe('escapeHtml', () => {
 // ─── getDateKey ────────────────────────────────────────────────
 
 describe('getDateKey', () => {
-  it('returns YYYY-M-D format', () => {
-    const d = new Date(2024, 0, 15); // Jan 15, 2024
+  it('returns YYYY-M-D format in UTC', () => {
+    const d = new Date(Date.UTC(2024, 0, 15)); // Jan 15, 2024 UTC
     expect(getDateKey(d.getTime())).toBe('2024-0-15');
   });
 
-  it('handles different months', () => {
-    expect(getDateKey(new Date(2024, 11, 25).getTime())).toBe('2024-11-25');
-    expect(getDateKey(new Date(2024, 6, 4).getTime())).toBe('2024-6-4');
+  it('handles different months in UTC', () => {
+    expect(getDateKey(Date.UTC(2024, 11, 25))).toBe('2024-11-25');
+    expect(getDateKey(Date.UTC(2024, 6, 4))).toBe('2024-6-4');
   });
 });
 

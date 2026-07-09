@@ -111,7 +111,7 @@ function getKasAmount(sompi) {
 
 function getDateKey(ms) {
   const d = new Date(ms);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 }
 
 function escapeHtml(str) {
@@ -298,10 +298,18 @@ function buildFIFOQueue(txs, address, priceMap) {
 
   for (const tx of txs) {
     const direction = getTxDirection(tx, address);
-    if (direction === 'self') continue;
+    if (direction === 'self') {
+      log('FIFO: skip self tx', tx.transaction_id?.slice(0, 12));
+      continue;
+    }
 
     const amount = getTxAmount(tx, address, direction);
-    const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
+    const dateKey = getDateKey(tx.block_time);
+    const price = priceMap ? priceMap[dateKey] : null;
+
+    if (priceMap && price === null && priceMap[dateKey] === undefined) {
+      log('FIFO: no price entry for date key', dateKey, 'tx', tx.transaction_id?.slice(0, 12), '— priceMap has', Object.keys(priceMap).length, 'keys');
+    }
 
     if (direction === 'received') {
       lots.push({
@@ -310,7 +318,10 @@ function buildFIFOQueue(txs, address, priceMap) {
         timestamp: tx.block_time,
         txId: tx.transaction_id
       });
+      log('FIFO: lot created for', tx.transaction_id?.slice(0, 12), '—', getKasAmount(amount), 'KAS at $' + (price != null ? price : 0), 'per KAS');
     } else if (direction === 'sent') {
+      log('FIFO: processing send', tx.transaction_id?.slice(0, 12), '—', getKasAmount(amount), 'KAS, sale price:', price != null ? '$' + price : 'N/A', ', lots available:', lots.length);
+
       let remaining = amount;
       let totalSaleValue = 0;
       let totalCostBasis = 0;
@@ -324,20 +335,24 @@ function buildFIFOQueue(txs, address, priceMap) {
         totalSaleValue += kasConsumed * salePrice;
         totalCostBasis += kasConsumed * lot.costBasisPerKas;
 
+        log('FIFO: consumed', kasConsumed, 'KAS from lot', lot.txId?.slice(0, 12), '(cost basis: $' + lot.costBasisPerKas + '/KAS)');
+
         lot.amount -= consumed;
         remaining -= consumed;
         if (lot.amount === 0) lots.shift();
       }
 
       if (remaining > 0) {
-        warn('FIFO: insufficient lots for tx', tx.transaction_id?.slice(0, 12), 'remaining:', getKasAmount(remaining), 'KAS');
+        warn('FIFO: insufficient lots for tx', tx.transaction_id?.slice(0, 12), '— unmatched:', getKasAmount(remaining), 'KAS');
       }
 
+      const gain = totalSaleValue - totalCostBasis;
       txGains[tx.transaction_id] = {
-        gain: totalSaleValue - totalCostBasis,
+        gain,
         saleValue: totalSaleValue,
         costBasis: totalCostBasis
       };
+      log('FIFO: send complete', tx.transaction_id?.slice(0, 12), '— gain: $' + gain, 'saleValue: $' + totalSaleValue, 'costBasis: $' + totalCostBasis);
     }
   }
 
@@ -450,12 +465,15 @@ function renderProfitSummary(txs, address, txGains) {
         totalGain += g.gain;
         totalSaleValue += g.saleValue;
         totalCostBasis += g.costBasis;
+      } else {
+        log('ProfitSummary: send tx', tx.transaction_id?.slice(0, 12), 'has no gain entry — txGains keys:', Object.keys(txGains || {}).length);
       }
     } else if (direction === 'self') {
       receivedSompi += amount;
       sentSompi += amount;
     }
   });
+  log('ProfitSummary: received:', getKasAmount(receivedSompi), 'KAS, sent:', getKasAmount(sentSompi), 'KAS, totalGain: $' + totalGain, 'hasUsd:', !!priceMap);
 
   const netSompi = receivedSompi - sentSompi;
   const hasUsd = priceMap !== null;
