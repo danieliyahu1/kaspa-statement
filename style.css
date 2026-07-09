@@ -411,6 +411,10 @@ label {
   margin-top: 2px;
 }
 
+.na {
+  color: #d2d2d7 !important;
+}
+
 .receipt-footer {
   display: flex;
   flex-direction: column;

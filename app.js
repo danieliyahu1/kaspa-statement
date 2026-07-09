@@ -106,7 +106,7 @@ async function fetchAddressTransactions(address) {
   return res.json();
 }
 
-const KUCION_BASE = 'https://api.kucoin.com';
+const BYBIT_BASE = 'https://api.bybit.com';
 
 function formatUSD(amount) {
   return '$' + Number(amount).toLocaleString('en-US', {
@@ -134,15 +134,14 @@ async function fetchPriceMap() {
     }
   } catch {}
   try {
-    const now = Math.floor(Date.now() / 1000);
-    const res = await fetch(`${KUCION_BASE}/api/v1/market/candles?symbol=KAS-USDT&type=1day&startAt=1660000000&endAt=${now}`);
+    const res = await fetch(`${BYBIT_BASE}/v5/market/kline?category=spot&symbol=KASUSDT&interval=D&limit=1000`);
     if (!res.ok) return null;
     const json = await res.json();
-    if (json.code !== '200000' || !json.data) return null;
+    if (json.retCode !== 0 || !json.result?.list) return null;
     const map = {};
-    json.data.forEach(candle => {
-      const key = getDateKey(candle[0] * 1000);
-      map[key] = key === todayKey ? parseFloat(candle[1]) : parseFloat(candle[2]);
+    json.result.list.forEach(candle => {
+      const key = getDateKey(parseInt(candle[0]));
+      map[key] = key === todayKey ? parseFloat(candle[1]) : parseFloat(candle[4]);
     });
     try { localStorage.setItem('kaspa-price-map', JSON.stringify(map)); } catch {}
     return map;
@@ -253,7 +252,7 @@ function renderReceipt(tx, price) {
       <span class="total-label">Total</span>
       <div class="total-values">
         <span class="total-amount">${formatKAS(totalSompi)}</span>
-        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : ''}
+        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : `<span class="total-usd na">— USD</span>`}
       </div>
     </div>
 
@@ -324,7 +323,7 @@ function renderAddressStatement(txs, address, balance, priceMap) {
         <div class="tx-right">
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
-          ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : ''}
+          ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : `<span class="tx-usd na">—</span>`}
           ${status}
         </div>
       </div>
@@ -345,17 +344,17 @@ function renderAddressStatement(txs, address, balance, priceMap) {
       <div class="summary-card received">
         <span class="summary-label">Received</span>
         <span class="summary-value">${formatKAS(totalReceived)}</span>
-        ${usdReceived ? `<span class="summary-usd">${formatUSD(usdReceived)}</span>` : ''}
+        ${usdReceived ? `<span class="summary-usd">${formatUSD(usdReceived)}</span>` : `<span class="summary-usd na">—</span>`}
       </div>
       <div class="summary-card sent">
         <span class="summary-label">Sent</span>
         <span class="summary-value">${formatKAS(totalSent)}</span>
-        ${usdSent ? `<span class="summary-usd">${formatUSD(usdSent)}</span>` : ''}
+        ${usdSent ? `<span class="summary-usd">${formatUSD(usdSent)}</span>` : `<span class="summary-usd na">—</span>`}
       </div>
       <div class="summary-card ${net >= 0 ? 'net-positive' : 'net-negative'}">
         <span class="summary-label">Net</span>
         <span class="summary-value">${net >= 0 ? '+' : ''}${formatKAS(net)}</span>
-        ${netUsd ? `<span class="summary-usd">${netUsd >= 0 ? '+' : ''}${formatUSD(netUsd)}</span>` : ''}
+        ${netUsd ? `<span class="summary-usd">${netUsd >= 0 ? '+' : ''}${formatUSD(netUsd)}</span>` : `<span class="summary-usd na">—</span>`}
       </div>
     </div>
 
