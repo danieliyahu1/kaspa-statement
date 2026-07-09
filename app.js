@@ -196,6 +196,20 @@ async function fetchAddressTxsPage(address, before) {
   return { txs, nextBefore: nextBefore || null };
 }
 
+async function fetchAddressTxsOffset(address, offset, limit = 500) {
+  const url = `${API_BASE}/addresses/${address}/full-transactions?limit=${limit}&offset=${offset}&resolve_previous_outpoints=light`;
+  log('Fetching address txs offset:', address, 'offset:', offset, 'limit:', limit);
+  const res = await fetch(url);
+  if (!res.ok) {
+    error('Address txs offset fetch failed:', res.status, res.statusText);
+    if (res.status === 404) throw new Error('Address not found. Check the address and try again.');
+    throw new Error('The Kaspa network is currently unavailable. Please try again.');
+  }
+  const data = await res.json();
+  log('Address txs offset page:', offset, 'count:', data.length);
+  return data;
+}
+
 async function fetchPriceMap() {
   log('Fetching price map from Bybit...');
   try {
@@ -290,19 +304,33 @@ async function fetchAllTxsFromGenesis(address, onPage) {
   }
 
   const allTxs = [];
-  let before = null;
   let pageNum = 0;
   const totalPages = Math.ceil(total / 500);
 
-  do {
-    pageNum++;
-    showLoading(true, `Fetching transactions\u2026 page ${pageNum} of ${totalPages}`);
-    const { txs, nextBefore } = await fetchAddressTxsPage(address, before);
-    allTxs.push(...txs);
-    before = nextBefore;
-    log('Fetched page, collected:', allTxs.length, 'total:', total);
-    if (onPage) onPage([...allTxs], pageNum, totalPages, total);
-  } while (before);
+  showLoading(true, `Fetching transactions\u2026 page 1 of ${totalPages}`);
+  const { txs: firstPageTxs, nextBefore } = await fetchAddressTxsPage(address, null);
+  pageNum++;
+  allTxs.push(...firstPageTxs);
+  if (onPage) onPage([...allTxs], pageNum, totalPages, total);
+
+  if (nextBefore) {
+    showLoading(true, `Fetching remaining transactions\u2026`);
+    const promises = [];
+    let offset = 500;
+    while (offset < total) {
+      promises.push(
+        fetchAddressTxsOffset(address, offset, 500).catch(err => {
+          error('Parallel fetch failed at offset', offset, err.message);
+          return [];
+        })
+      );
+      offset += 500;
+    }
+    const results = await Promise.all(promises);
+    for (const txs of results) {
+      allTxs.push(...txs);
+    }
+  }
 
   allTxs.reverse();
   log('All txs fetched from genesis and reversed. Total:', allTxs.length);
@@ -711,7 +739,7 @@ function renderStatement() {
   const loadingBanner = _loadingMore ? `
     <div class="loading-more">
       <span class="spinner"></span>
-      <span class="loading-more-text">Loading remaining transactions\u2026 page ${statement._loadingPage} of ${statement._loadingTotal}</span>
+      <span class="loading-more-text">Loading remaining transactions\u2026</span>
     </div>
   ` : '';
 
@@ -848,15 +876,12 @@ async function handleGenerate() {
             allTxs: null,
             txGains: {}, fifoSummary: {},
             page: 0, _gainsComputed: false, _loadingMore: true,
-            _loadingPage: pageNum, _loadingTotal: totalPages,
             _totalTxCount: total
           };
           renderStatement();
           resultEl.classList.remove('hidden');
           resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        const textEl = document.querySelector('.loading-more-text');
-        if (textEl) textEl.textContent = `Loading remaining transactions\u2026 page ${pageNum} of ${totalPages}`;
       });
 
       log('All txs from genesis:', allTxs.length);
