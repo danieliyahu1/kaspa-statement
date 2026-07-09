@@ -513,6 +513,8 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
+    <button class="card-btn card-btn-back" id="export-receipt-btn">Download CSV</button>
+
     <div class="receipt-ref">
       <span class="receipt-ref-label">Transaction ID</span>
       <div class="receipt-ref-hash">
@@ -521,7 +523,6 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
-    <button class="card-btn" id="export-receipt-btn">Download CSV</button>
     ${showBack ? '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button>' : ''}
   `;
 }
