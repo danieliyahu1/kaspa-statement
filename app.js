@@ -228,7 +228,10 @@ function renderReceipt(tx, price) {
   receiptCard.innerHTML = `
       <div class="receipt-header">
       <h2>Kaspa Receipt</h2>
-      <div class="receipt-id">Ref: ${shortenHash(tx.transaction_id, 12)}</div>
+      <div class="receipt-id">
+        ${tx.transaction_id}
+        <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
+      </div>
     </div>
 
     <div class="receipt-status">
@@ -274,16 +277,6 @@ function renderReceipt(tx, price) {
       <div class="total-values">
         <span class="total-amount">${formatKAS(totalSompi)}</span>
         ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : '<span class="total-usd na">— USD</span>'}
-      </div>
-    </div>
-
-    <div class="receipt-footer">
-      <div class="footer-row">
-        <span class="footer-label">Transaction ID</span>
-        <span class="footer-value">
-          ${tx.transaction_id}
-          <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
-        </span>
       </div>
     </div>
 
@@ -426,7 +419,10 @@ function renderStatement() {
   statementCard.innerHTML = `
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
-      <div class="statement-address">${shortenHash(address, 16)}</div>
+      <div class="statement-address">
+        ${escapeHtml(address)}
+        <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
+      </div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
       ${summaryHtml}
     </div>

@@ -271,9 +271,10 @@ label {
 
 .receipt-header .receipt-id {
   font-size: 11px;
-  color: #aeaeb2;
+  color: #515154;
   margin-top: 4px;
   font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  word-break: break-all;
 }
 
 .receipt-status {
@@ -559,9 +560,10 @@ label {
 
 .statement-address {
   font-size: 11px;
-  color: #aeaeb2;
+  color: #515154;
   font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   margin-bottom: 8px;
+  word-break: break-all;
 }
 
 .statement-balance {
