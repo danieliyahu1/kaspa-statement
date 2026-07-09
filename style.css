@@ -862,16 +862,17 @@ label {
 
 .loading-placeholder {
   color: #aeaeb2 !important;
-  font-style: italic;
 }
 
-.loading-pulse {
-  animation: loadingPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes loadingPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+.placeholder-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(174, 174, 178, 0.25);
+  border-top-color: #aeaeb2;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
 }
 
 .loading-more {

@@ -503,7 +503,7 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
       <div class="summary-row summary-cost-basis">
         <span class="summary-label">Cost Basis</span>
         <div class="summary-values">
-          <div class="summary-usd cost-basis-value loading-placeholder"><span class="loading-pulse">Loading</span></div>
+          <div class="summary-usd cost-basis-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
     : showCostBasis
@@ -520,7 +520,7 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
     ? `<div class="summary-row summary-avg-price">
         <span class="summary-label">Avg Buy Price</span>
         <div class="summary-values">
-          <div class="summary-usd avg-price-value loading-placeholder"><span class="loading-pulse">Loading</span></div>
+          <div class="summary-usd avg-price-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
     : remainingKas > 0 && showCostBasis
@@ -537,7 +537,7 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
       <div class="summary-row summary-current-value">
         <span class="summary-label">Current Value</span>
         <div class="summary-values">
-          <div class="summary-usd current-value-amount loading-placeholder"><span class="loading-pulse">Loading</span></div>
+          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
     : currentPrice !== null && balance > 0
@@ -686,7 +686,7 @@ function renderStatement() {
     const gainInfo = isSent && statement.txGains && statement.txGains[tx.transaction_id];
 
     const gainHtml = isSent && _loadingMore
-      ? `<span class="tx-gain loading-placeholder"><span class="loading-pulse">Loading</span></span>`
+      ? `<span class="tx-gain loading-placeholder"><span class="placeholder-spinner"></span></span>`
       : gainInfo && gainInfo.gain >= 0
         ? `<span class="tx-gain gain-positive">Gain: ${formatUSD(gainInfo.gain)}</span>`
         : '';
