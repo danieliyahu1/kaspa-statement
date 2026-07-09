@@ -447,6 +447,12 @@ label {
   font-size: 15px;
 }
 
+.summary-avg-price .summary-usd {
+  color: #1d1d1f;
+  font-weight: 600;
+  font-size: 14px;
+}
+
 .cost-basis-value {
   font-size: 15px;
 }

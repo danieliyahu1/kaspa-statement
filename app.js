@@ -523,7 +523,14 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance) {
         <span class="summary-label">Cost Basis <span class="summary-sub">(carries forward)</span></span>
         <div class="summary-values">
           <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
-          ${remainingKas > 0 ? `<div class="summary-avg">${formatKAS(remainingAmountSompi)} at ${formatUSD(remainingCostBasis / remainingKas)} avg</div>` : ''}
+          ${remainingKas > 0 ? `<div class="summary-avg">${formatKAS(remainingAmountSompi)}</div>` : ''}
+        </div>
+      </div>` : ''}
+      ${remainingKas > 0 && showCostBasis ? `
+      <div class="summary-row summary-avg-price">
+        <span class="summary-label">Avg Buy Price</span>
+        <div class="summary-values">
+          <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
         </div>
       </div>` : ''}
       ${currentPrice !== null && balance > 0 ? `
