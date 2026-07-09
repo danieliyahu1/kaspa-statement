@@ -513,6 +513,8 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
+    <button class="card-btn" id="export-receipt-btn">Download CSV</button>
+
     <div class="receipt-ref">
       <span class="receipt-ref-label">Transaction ID</span>
       <div class="receipt-ref-hash">
@@ -522,7 +524,6 @@ function renderReceipt(tx, price, showBack) {
     </div>
 
     ${showBack ? '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button>' : ''}
-    <button class="card-btn" id="export-receipt-btn">Download CSV</button>
   `;
 }
 
@@ -821,6 +822,7 @@ function renderStatement() {
       </div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
       ${summaryHtml}
+      <button class="card-btn" id="export-csv-btn">Download CSV</button>
     </div>
     <div class="tx-list">
       <div class="tx-list-header">
@@ -830,7 +832,6 @@ function renderStatement() {
       ${loadingNote}
     </div>
     ${_loadingMore ? `<div class="pagination"><button class="page-btn" disabled>&#171; Prev</button><span class="page-info">Page 1 of ${Math.ceil(statement._totalTxCount / PAGE_SIZE)}</span><button class="page-btn" disabled>Next &#187;</button></div>` : buildPagination(page, totalPages)}
-    <button class="card-btn" id="export-csv-btn">Download CSV</button>
   `;
 
   receiptCard.classList.add('hidden');
