@@ -39,6 +39,7 @@ main {
   color: #fff;
   font-size: 26px;
   font-weight: 400;
+  font-family: "Segoe UI Historic", "Noto Sans Phoenician", "Arial Unicode MS", sans-serif;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -488,8 +489,9 @@ label {
 }
 
 .btn-new:hover {
-  background: #f5f5f7;
-  border-color: #aeaeb2;
+  background: #f0faf8;
+  border-color: var(--kaspa-teal);
+  color: var(--kaspa-teal);
 }
 
 .btn-back {

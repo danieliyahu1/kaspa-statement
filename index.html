@@ -15,10 +15,9 @@
     </div>
 
     <div class="input-section">
-      <label for="tx-input">Transaction or Address</label>
       <div class="input-group">
-        <input type="text" id="tx-input" placeholder="Paste a transaction ID or wallet address..." maxlength="80" spellcheck="false" autocomplete="off">
-        <button id="generate-btn">Generate</button>
+        <input type="text" id="tx-input" placeholder="Paste a transaction ID or wallet address..." maxlength="80" spellcheck="false" autocomplete="off" aria-label="Transaction ID or wallet address">
+        <button id="generate-btn">Look Up</button>
       </div>
       <div id="date-range-section" class="date-range hidden">
         <div class="date-range-group">
@@ -36,7 +35,7 @@
 
     <div id="loading" class="loading hidden">
       <div class="spinner"></div>
-      <p id="loading-text">Fetching data from the Kaspa network…</p>
+      <p id="loading-text">Looking up your transaction…</p>
     </div>
 
     <div id="error" class="error hidden" role="alert"></div>
