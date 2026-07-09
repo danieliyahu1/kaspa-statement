@@ -619,9 +619,9 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
 function exportCSV() {
   if (!statement) { warn('exportCSV called but statement is null'); return; }
   if (statement._loadingMore) { warn('exportCSV called while data still loading'); return; }
-  const { address, txs, txGains } = statement;
+  const { address, txs } = statement;
 
-  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status', 'Cost Basis (USD)', 'Realized Gain (USD)'];
+  const headers = ['Date', 'Direction', 'Amount (KAS)', 'USD Value', 'Counterparty', 'Transaction ID', 'Status'];
   const rows = txs.map(tx => {
     const direction = getTxDirection(tx, address);
     const counterparty = getCounterparty(tx, address, direction);
@@ -630,7 +630,6 @@ function exportCSV() {
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     const usd = price ? formatUSD(kas * price) : '';
     const status = tx.is_accepted ? 'Confirmed' : 'Pending';
-    const gain = direction === 'sent' && txGains ? txGains[tx.transaction_id] : null;
     return [
       formatShortDate(tx.block_time),
       direction === 'sent' ? 'Sent' : (direction === 'self' ? 'Self' : 'Received'),
@@ -638,9 +637,7 @@ function exportCSV() {
       usd,
       counterparty,
       tx.transaction_id,
-      status,
-      gain ? formatUSD(gain.costBasis) : '',
-      gain ? formatUSD(gain.gain) : ''
+      status
     ];
   });
 
@@ -726,14 +723,6 @@ function renderStatement() {
       ? '<span class="tx-status unconfirmed">Pending</span>'
       : '';
 
-    const gainInfo = isSent && statement.txGains && statement.txGains[tx.transaction_id];
-
-    const gainHtml = isSent && _loadingMore
-      ? `<span class="tx-gain loading-placeholder"><span class="placeholder-spinner"></span></span>`
-      : gainInfo && gainInfo.gain >= 0
-        ? `<span class="tx-gain gain-positive">Gain: ${formatUSD(gainInfo.gain)}</span>`
-        : '';
-
     txRows += `
       <div class="tx-row" data-tx-id="${tx.transaction_id}">
         <div class="tx-left">
@@ -744,7 +733,6 @@ function renderStatement() {
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
           ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
-          ${gainHtml}
           ${status}
         </div>
       </div>
