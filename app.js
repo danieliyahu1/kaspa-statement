@@ -624,8 +624,8 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
           const profit = currentValue - remainingCostBasis;
           const isProfit = profit >= 0;
           return `<div class="summary-divider"></div>
-            <div class="summary-row ${isProfit ? 'summary-profit' : 'summary-loss'}">
-              <span class="summary-label">${isProfit ? 'Unrealized Profit' : 'Unrealized Loss'}</span>
+            <div class="summary-row summary-profit">
+              <span class="summary-label">Unrealized Profit</span>
               <div class="summary-values">
                 <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
               </div>
