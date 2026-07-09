@@ -282,7 +282,7 @@ function renderReceipt(tx, price) {
       <span class="total-label">Total</span>
       <div class="total-values">
         <span class="total-amount">${formatKAS(totalSompi)}</span>
-        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : '<span class="total-usd na">N/A</span>'}
+        ${usdTotal !== null ? `<span class="total-usd">≈ ${formatUSD(usdTotal)} USD</span>` : '<span class="total-usd na">$N/A</span>'}
       </div>
     </div>
 
@@ -423,7 +423,7 @@ function renderStatement() {
         <div class="tx-right">
           <span class="tx-direction ${amtClass}">${symbol} ${label}</span>
           <span class="tx-amount ${amtClass}">${formatKAS(amount)}</span>
-          ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">N/A</span>'}
+          ${usdAmount !== null ? `<span class="tx-usd">${formatUSD(usdAmount)}</span>` : '<span class="tx-usd na">$N/A</span>'}
           ${status}
         </div>
       </div>
