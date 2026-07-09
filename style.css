@@ -919,7 +919,4 @@ label {
     font-size: 16px;
   }
 
-  .receipt-actions {
-    flex-direction: column;
-  }
 }

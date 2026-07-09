@@ -505,11 +505,6 @@ function renderReceipt(tx, price) {
       <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
     </div>
 
-    <div class="receipt-actions">
-      ${statement ? '<button class="btn-back" id="back-btn">Back to History</button>' : ''}
-      <button class="btn-export" id="export-receipt-btn">Export</button>
-      <button class="btn-new" id="new-receipt-btn">New Receipt</button>
-    </div>
   `;
 }
 
@@ -837,6 +832,7 @@ function renderStatement() {
 
   receiptCard.classList.add('hidden');
   statementCard.classList.remove('hidden');
+  $('actions-bar').innerHTML = '<button class="btn-export" id="export-csv-btn">Export CSV</button>';
   $('actions-bar').classList.remove('hidden');
 }
 
@@ -857,9 +853,10 @@ async function showTxDetail(txId) {
     const tx = await fetchTransaction(txId);
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     statementCard.classList.add('hidden');
-    $('actions-bar').classList.add('hidden');
     receiptCard.classList.remove('hidden');
     renderReceipt(tx, price);
+    $('actions-bar').innerHTML = '<button class="btn-back" id="back-btn">Back to Statement</button><button class="btn-export" id="export-receipt-btn">Export</button>';
+    $('actions-bar').classList.remove('hidden');
   } catch (err) {
     error('showTxDetail error:', err.message);
     showError(err.message);
@@ -931,6 +928,8 @@ async function handleGenerate() {
       const tx = await fetchTransaction(raw);
       const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
       renderReceipt(tx, price);
+      $('actions-bar').innerHTML = '<button class="btn-export" id="export-receipt-btn">Export</button>';
+      $('actions-bar').classList.remove('hidden');
     } else if (ADDRESS_REGEX.test(raw)) {
       log('Input matched address pattern');
       statement = null;
@@ -999,23 +998,6 @@ function initEventListeners() {
   receiptCard.addEventListener('click', (e) => {
     const copyBtn = e.target.closest('.copy-btn');
     if (copyBtn && copyBtn.dataset.copy) { log('Copy clicked:', copyBtn.dataset.copy.slice(0, 12)); copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
-
-    if (e.target.closest('#back-btn') && statement) {
-      log('Back to statement clicked');
-      renderStatement();
-      resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-
-    if (e.target.closest('#new-receipt-btn')) {
-      log('New receipt clicked');
-      resetForm();
-    }
-
-    if (e.target.closest('#export-receipt-btn')) {
-      log('Export receipt clicked');
-      exportReceiptCSV();
-    }
   });
 
   statementCard.addEventListener('click', (e) => {
@@ -1036,6 +1018,19 @@ function initEventListeners() {
   });
 
   $('actions-bar').addEventListener('click', (e) => {
+    if (e.target.closest('#back-btn') && statement) {
+      log('Back to statement clicked');
+      renderStatement();
+      resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    if (e.target.closest('#export-receipt-btn')) {
+      log('Export receipt clicked');
+      exportReceiptCSV();
+      return;
+    }
+
     if (e.target.closest('#export-csv-btn')) {
       log('Export CSV clicked');
       exportCSV();

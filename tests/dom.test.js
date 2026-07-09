@@ -50,18 +50,11 @@ describe('renderReceipt', () => {
     expect(card.innerHTML).toContain('Coinbase');
   });
 
-  it('includes Back to History button when statement exists', () => {
-    statement = { address: 'kaspa:test', balance: '0', txs: [], page: 0 };
+  it('does not include action buttons in receipt card', () => {
     renderReceipt(mockTx, null);
     const card = document.getElementById('receipt-card');
-    expect(card.innerHTML).toContain('Back to History');
-    statement = null;
-  });
-
-  it('includes New Receipt button', () => {
-    renderReceipt(mockTx, null);
-    const card = document.getElementById('receipt-card');
-    expect(card.innerHTML).toContain('New Receipt');
+    expect(card.innerHTML).not.toContain('Back to Statement');
+    expect(card.innerHTML).not.toContain('New Receipt');
   });
 
   it('unhides receipt card', () => {
