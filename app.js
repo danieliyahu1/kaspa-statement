@@ -5,15 +5,15 @@ const PAGE_SIZE = 50;
 const BYBIT_BASE = 'https://api.bybit.com';
 
 function log(...args) {
-  console.log('[Kaspa Receipts]', ...args);
+  console.log('[Kaspa Statement]', ...args);
 }
 
 function warn(...args) {
-  console.warn('[Kaspa Receipts]', ...args);
+  console.warn('[Kaspa Statement]', ...args);
 }
 
 function error(...args) {
-  console.error('[Kaspa Receipts]', ...args);
+  console.error('[Kaspa Statement]', ...args);
 }
 
 const $ = (id) => document.getElementById(id);

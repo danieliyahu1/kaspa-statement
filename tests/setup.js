@@ -22,7 +22,7 @@ document.body.innerHTML = `
   </div>
 `;
 
-// Suppress [Kaspa Receipts] logs during tests
+// Suppress [Kaspa Statement] logs during tests
 const origLog = console.log;
 const origWarn = console.warn;
 const origError = console.error;

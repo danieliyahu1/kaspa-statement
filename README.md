@@ -1,4 +1,4 @@
-# Kaspa Receipts
+# Kaspa Statement
 
 A receipt for every transaction. A statement for your wallet. Kaspa financial documents, generated instantly.
 
