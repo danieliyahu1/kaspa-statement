@@ -866,12 +866,6 @@ function initEventListeners() {
     if (e.target.closest('#export-csv-btn')) {
       log('Export CSV clicked');
       exportCSV();
-      return;
-    }
-
-    if (e.target.closest('#search-btn')) {
-      log('New search clicked');
-      resetForm();
     }
   });
 }
