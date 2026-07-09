@@ -333,7 +333,7 @@ function renderNetSummary(txs, address) {
         </div>
       </div>
       <div class="summary-row summary-net">
-        <span class="summary-label">Net</span>
+        <span class="summary-label">Change</span>
         <div class="summary-values">
           <div class="summary-kas">${formatKAS(netSompi)}</div>
           ${hasUsd ? `<div class="summary-usd">≈ ${formatUSD(netUsd)} USD</div>` : ''}
