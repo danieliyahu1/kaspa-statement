@@ -65,17 +65,6 @@ function shortenHash(hash, chars = 8) {
   return hash.slice(0, chars) + '\u2026' + hash.slice(-chars);
 }
 
-function copyToClipboard(text, btnEl) {
-  navigator.clipboard.writeText(text).then(() => {
-    btnEl.textContent = 'Copied!';
-    btnEl.classList.add('copied');
-    setTimeout(() => {
-      btnEl.textContent = 'Copy';
-      btnEl.classList.remove('copied');
-    }, 2000);
-  });
-}
-
 function formatUSD(amount) {
   return '$' + Number(amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -228,10 +217,7 @@ function renderReceipt(tx, price) {
   receiptCard.innerHTML = `
       <div class="receipt-header">
       <h2>Kaspa Receipt</h2>
-      <div class="receipt-id">
-        ${tx.transaction_id}
-        <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
-      </div>
+      <div class="receipt-id">${tx.transaction_id}</div>
     </div>
 
     <div class="receipt-status">
@@ -253,7 +239,6 @@ function renderReceipt(tx, price) {
         ? fromAddresses.map(addr => `
             <div class="address-block">
               <span class="address">${escapeHtml(addr)}</span>
-              <button class="copy-btn" data-copy="${escapeHtml(addr)}">Copy</button>
             </div>
           `).join('')
         : '<span class="address" style="color:#aeaeb2">Coinbase (new block reward)</span>'
@@ -419,10 +404,7 @@ function renderStatement() {
   statementCard.innerHTML = `
     <div class="statement-header">
       <h2>Kaspa Statement</h2>
-      <div class="statement-address">
-        ${escapeHtml(address)}
-        <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
-      </div>
+      <div class="statement-address">${escapeHtml(address)}</div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
       ${summaryHtml}
     </div>
@@ -574,8 +556,6 @@ function initEventListeners() {
 
   receiptCard.addEventListener('click', (e) => {
     const btn = e.target.closest('.copy-btn');
-    if (btn && btn.dataset.copy) { copyToClipboard(btn.dataset.copy, btn); return; }
-
     if (e.target.closest('#back-btn') && statement) {
       renderStatement();
       resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
