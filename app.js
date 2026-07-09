@@ -337,6 +337,7 @@ async function fetchAllTxsFromGenesis(address, onPage) {
       offset += 500;
     }
     const results = await Promise.all(promises);
+    showLoading(true, 'Processing transactions\u2026');
     for (const txs of results) {
       allTxs.push(...txs);
     }
