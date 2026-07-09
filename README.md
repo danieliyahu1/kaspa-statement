@@ -4,6 +4,10 @@ Generate printable receipts and transaction history for Kaspa wallet addresses.
 
 A pure client-side single-page app. No backend, no database, no build step — just a static HTML file you can open in a browser or deploy anywhere.
 
+## Live Website
+
+**[kaspa-receipts.onrender.com](https://kaspa-receipts.onrender.com/)** — hosted on Render's global CDN. No installation required.
+
 ## Features
 
 - **Transaction Receipt** — Paste a Kaspa TX hash to see a paper-style receipt with from/to addresses, amounts, confirmation status, and USD value.
@@ -12,10 +16,6 @@ A pure client-side single-page app. No backend, no database, no build step — j
 - **Transaction Classification** — Automatically detects `Received`, `Sent`, or `Self` (self-transfer) transactions.
 - **CSV Export** — Download transaction history as a CSV file.
 - **Dark Mode** — Full dark theme with Kaspa brand colors.
-
-## Live Website
-
-**[kaspa-receipts.onrender.com](https://kaspa-receipts.onrender.com/)** — hosted on Render's global CDN. No installation required.
 
 ## Usage
 
