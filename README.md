@@ -1,6 +1,6 @@
 # Kaspa Receipts
 
-Generate printable receipts, transaction history, and tax summaries for Kaspa wallet addresses.
+A receipt for every transaction. A statement for your wallet. Kaspa financial documents, generated instantly.
 
 A pure client-side single-page app. No backend, no database, no build step — just a static HTML file you can open in a browser or deploy anywhere.
 
