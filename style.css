@@ -499,6 +499,22 @@ label {
   margin-top: 24px;
 }
 
+.actions-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.actions-bar button {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
 .receipt-actions button {
   flex: 1;
   padding: 10px;

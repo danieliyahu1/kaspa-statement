@@ -677,10 +677,6 @@ function renderStatement() {
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
       ${summaryHtml}
     </div>
-    <div class="receipt-actions">
-      <button class="btn-export" id="export-csv-btn">Export</button>
-      <button class="btn-new" id="search-btn">New Search</button>
-    </div>
     <div class="tx-list">
       <div class="tx-list-header">
         <span>${txs.length} transaction${txs.length !== 1 ? 's' : ''}</span>
@@ -692,6 +688,7 @@ function renderStatement() {
 
   receiptCard.classList.add('hidden');
   statementCard.classList.remove('hidden');
+  $('actions-bar').classList.remove('hidden');
 }
 
 function goToPage(page) {
@@ -710,6 +707,7 @@ async function showTxDetail(txId) {
     const tx = await fetchTransaction(txId);
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     statementCard.classList.add('hidden');
+    $('actions-bar').classList.add('hidden');
     receiptCard.classList.remove('hidden');
     renderReceipt(tx, price);
   } catch (err) {
@@ -745,6 +743,7 @@ function resetForm() {
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
   statementCard.classList.add('hidden');
+  $('actions-bar').classList.add('hidden');
   receiptTx = null;
   statement = null;
   hideError();
@@ -861,6 +860,9 @@ function initEventListeners() {
       return;
     }
 
+  });
+
+  $('actions-bar').addEventListener('click', (e) => {
     if (e.target.closest('#export-csv-btn')) {
       log('Export CSV clicked');
       exportCSV();

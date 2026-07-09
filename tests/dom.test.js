@@ -197,19 +197,13 @@ describe('renderStatement', () => {
     statement = null;
   });
 
-  it('includes New Search button', () => {
+  it('shows actions bar with New Search and Export buttons', () => {
     statement = { address, balance: '0', txs: [], page: 0 };
     renderStatement();
-    const card = document.getElementById('statement-card');
-    expect(card.innerHTML).toContain('New Search');
-    statement = null;
-  });
-
-  it('includes Export button', () => {
-    statement = { address, balance: '0', txs: [], page: 0 };
-    renderStatement();
-    const card = document.getElementById('statement-card');
-    expect(card.innerHTML).toContain('Export');
+    const bar = document.getElementById('actions-bar');
+    expect(bar.classList.contains('hidden')).toBe(false);
+    expect(bar.innerHTML).toContain('New Search');
+    expect(bar.innerHTML).toContain('Export');
     statement = null;
   });
 });
