@@ -93,7 +93,7 @@ describe('renderStatement', () => {
     statement = { address, balance: '100000000', txs, page: 0 };
     renderStatement();
     const card = document.getElementById('statement-card');
-    expect(card.innerHTML).toContain('1 transaction');
+    expect(card.innerHTML).toContain('Transactions');
     expect(card.innerHTML).toContain('Received');
     expect(card.innerHTML).toContain('1.00 KAS');
     statement = null;
@@ -186,7 +186,7 @@ describe('renderStatement', () => {
     renderStatement();
     const card = document.getElementById('statement-card');
     expect(card.innerHTML).toContain('polyline points="9 18 15 12 9 6"');
-    expect(card.innerHTML).toContain('60 transactions');
+    expect(card.innerHTML).toContain('Transactions');
     statement = null;
   });
 

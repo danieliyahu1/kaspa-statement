@@ -868,9 +868,7 @@ function renderStatement() {
       ${summaryHtml}
     </div>
     <div class="tx-list">
-      <div class="tx-list-header">
-        <span>${_loadingMore ? `${formatNumber(txs.length)} of ${formatNumber(statement._totalTxCount)} transactions` : `${txs.length} transaction${txs.length !== 1 ? 's' : ''}`}</span>
-      </div>
+      <div class="tx-list-header">Transactions</div>
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
       ${loadingBanner}
     </div>
