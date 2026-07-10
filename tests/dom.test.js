@@ -396,7 +396,7 @@ describe('renderProfitSummary', () => {
     ];
 
     const html = renderProfitSummary(txs, address, {});
-    expect(html).toContain('Summary');
+    expect(html).toContain('Activity');
     expect(html).toContain('Received');
     expect(html).toContain('Sent');
     expect(html).toContain('3.00 KAS'); // received

@@ -655,7 +655,6 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
 
   return `
     <div class="net-summary">
-      <div class="summary-title">Summary</div>
       <div class="summary-group-label">Activity</div>
       <div class="summary-row">
         <span class="summary-label">Received</span>

@@ -645,15 +645,6 @@ label {
   border-top: 1.5px dashed #e8e8e0;
 }
 
-.summary-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #aeaeb2;
-  margin-bottom: 8px;
-}
-
 .summary-group-label {
   font-size: 10px;
   font-weight: 700;
