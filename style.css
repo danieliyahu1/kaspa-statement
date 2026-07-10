@@ -37,19 +37,19 @@ main {
 
 .header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 40px;
 }
 
 .logo {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 8px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 10px;
   background: var(--kaspa-teal);
   color: #fff;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 400;
   font-family: "Segoe UI Historic", "Noto Sans Phoenician", "Arial Unicode MS", sans-serif;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -57,13 +57,18 @@ main {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
   color: var(--text-primary);
 }
 
-
+.subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
 
 .input-section {
   margin-bottom: 24px;
@@ -161,34 +166,17 @@ label {
 
 .loading {
   text-align: center;
-  padding: 32px 0;
+  padding: 40px 0;
 }
 
 .spinner {
   width: 28px;
   height: 28px;
-  margin: 0 auto;
+  margin: 0 auto 12px;
   border: 3px solid rgba(112, 199, 186, 0.2);
   border-top-color: var(--kaspa-teal);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
-}
-
-.progress-track {
-  width: 200px;
-  height: 3px;
-  margin: 16px auto 0;
-  background: rgba(112, 199, 186, 0.15);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--kaspa-teal);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-  width: 0%;
 }
 
 @keyframes spin {
@@ -228,26 +216,30 @@ label {
 .receipt-card {
   background: #fefef7;
   border-radius: 16px;
-  padding: 24px;
+  padding: 32px 28px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   font-size: 14px;
   line-height: 1.5;
+  border-top: 3px solid var(--kaspa-teal);
 }
 
 .receipt-header {
   text-align: center;
-  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px dashed #e8e8e0;
 }
 
 .receipt-header h2 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   color: #1d1d1f;
 }
 
 .receipt-status {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .receipt-ref {
@@ -257,13 +249,15 @@ label {
   gap: 4px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #e8e8e0;
+  border-top: 1.5px dashed #e8e8e0;
 }
 
 .receipt-ref-label {
   font-size: 11px;
   font-weight: 600;
   color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .receipt-ref-hash {
@@ -301,7 +295,9 @@ label {
 }
 
 .receipt-meta {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px dashed #e8e8e0;
 }
 
 .meta-row {
@@ -324,7 +320,9 @@ label {
 }
 
 .receipt-section {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px dashed #e8e8e0;
 }
 
 .section-label {
@@ -384,7 +382,9 @@ label {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px dashed #e8e8e0;
 }
 
 .receipt-total .total-label {
@@ -462,12 +462,69 @@ label {
   font-size: 14px;
 }
 
+.cost-basis-value {
+  font-size: 15px;
+}
+
+.summary-avg {
+  font-size: 11px;
+  color: #aeaeb2;
+  margin-top: 1px;
+}
+
+.summary-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: #aeaeb2;
+}
+
+.summary-loss .summary-usd {
+  color: #d4380d;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.profit-value {
+  font-size: 15px;
+}
+
+
+.receipt-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.actions-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.actions-bar button {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.receipt-actions button {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
 
 .card-btn {
   display: block;
   width: 100%;
   padding: 10px;
-  margin-top: 16px;
   font-size: 13px;
   font-weight: 600;
   color: #fff;
@@ -527,21 +584,26 @@ label {
 #statement-card {
   background: #fefef7;
   border-radius: 16px;
-  padding: 24px;
+  padding: 32px 28px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   font-size: 14px;
   line-height: 1.5;
   animation: fadeUp 0.35s ease-out;
+  border-top: 3px solid var(--kaspa-teal);
 }
 
 .statement-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px dashed #e8e8e0;
 }
 
 .statement-header h2 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   color: #1d1d1f;
   margin-bottom: 4px;
 }
@@ -570,7 +632,7 @@ label {
 .net-summary {
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid #e8e8e0;
+  border-top: 1.5px dashed #e8e8e0;
 }
 
 .summary-title {
@@ -621,7 +683,7 @@ label {
 }
 
 .tx-list {
-  border-top: 1px solid #e8e8e0;
+  border-top: 1.5px dashed #e8e8e0;
   padding-top: 12px;
 }
 
@@ -769,6 +831,11 @@ label {
   background: #f5f5f7;
 }
 
+.page-btn.loading {
+  color: #aeaeb2;
+  cursor: default;
+}
+
 .page-ellipsis {
   color: #aeaeb2;
   font-size: 12px;
@@ -783,6 +850,38 @@ label {
   font-weight: 600;
 }
 
+.loading-placeholder {
+  color: #aeaeb2 !important;
+}
+
+.placeholder-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(174, 174, 178, 0.25);
+  border-top-color: #aeaeb2;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+  font-size: 13px;
+  color: #aeaeb2;
+}
+
+.loading-more .spinner {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-width: 2px;
+}
+
 .tx-list-header {
   display: flex;
   align-items: center;
@@ -794,13 +893,32 @@ label {
   margin-bottom: 8px;
 }
 
+/* ── Progress Bar ── */
+
+.progress-bar-container {
+  width: 100%;
+  height: 4px;
+  background: rgba(112, 199, 186, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--kaspa-teal);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
 @media (max-width: 480px) {
   main {
-    padding: 24px 16px 24px;
+    padding: 32px 16px 24px;
   }
 
   h1 {
-    font-size: 20px;
+    font-size: 24px;
   }
 
   .input-group {
@@ -812,11 +930,15 @@ label {
   }
 
   .receipt-card {
-    padding: 20px 16px;
+    padding: 24px 18px;
   }
 
   #statement-card {
-    padding: 20px 16px;
+    padding: 24px 18px;
+  }
+
+  .receipt-total .total-amount {
+    font-size: 16px;
   }
 
 }

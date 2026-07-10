@@ -21,6 +21,7 @@ const $ = (id) => document.getElementById(id);
 const input = $('tx-input');
 const button = $('generate-btn');
 const loadingEl = $('loading');
+const loadingText = $('loading-text');
 const errorEl = $('error');
 const resultEl = $('result');
 const receiptCard = $('receipt-card');
@@ -33,25 +34,13 @@ let currentPrice = null;
 let currentPricePromise = null;
 let fetchGeneration = 0;
 
-function showLoading(show) {
+function showLoading(show, text) {
+  log(`${show ? 'Showing' : 'Hiding'} loading state${text ? ': ' + text : ''}`);
   loadingEl.classList.toggle('hidden', !show);
   button.classList.toggle('loading', show);
   button.disabled = show;
+  if (text !== undefined) loadingText.textContent = text;
   if (!show) resetProgress();
-}
-
-function showProgress(current, total) {
-  const track = $('progress-track');
-  const fill = $('progress-fill');
-  if (track) track.classList.remove('hidden');
-  if (fill) fill.style.width = Math.min(100, Math.round((current / total) * 100)) + '%';
-}
-
-function resetProgress() {
-  const track = $('progress-track');
-  const fill = $('progress-fill');
-  if (track) track.classList.add('hidden');
-  if (fill) fill.style.width = '0%';
 }
 
 function showError(message) {
@@ -127,6 +116,23 @@ function getDateKey(ms) {
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showProgress(current, total) {
+  const bar = $('progress-bar');
+  const container = $('progress-container');
+  if (container) container.classList.remove('hidden');
+  if (bar) {
+    const pct = Math.min(100, Math.round((current / total) * 100));
+    bar.style.width = pct + '%';
+  }
+}
+
+function resetProgress() {
+  const bar = $('progress-bar');
+  const container = $('progress-container');
+  if (container) container.classList.add('hidden');
+  if (bar) bar.style.width = '0%';
 }
 
 async function fetchTransaction(txId) {
@@ -319,7 +325,7 @@ async function fetchAllTxsFromGenesis(address, onPage) {
   let pageNum = 0;
   const totalPages = Math.ceil(total / 500);
 
-  showLoading(true);
+  showLoading(true, 'Building your statement\u2026');
   const { txs: firstPageTxs, nextBefore } = await fetchAddressTxsPage(address, null);
   pageNum++;
   allTxs.push(...firstPageTxs);
@@ -334,15 +340,14 @@ async function fetchAllTxsFromGenesis(address, onPage) {
       const off = offset;
       promises.push(
         fetchAddressTxsOffset(address, off, 500)
+          .catch(err => {
+            error('Parallel fetch failed at offset', off, err.message);
+            return [];
+          })
           .then(txs => {
             done++;
             showProgress(pageNum + done, totalPages);
             return txs;
-          })
-          .catch(err => {
-            done++;
-            error('Parallel fetch failed at offset', off, err.message);
-            return [];
           })
       );
       offset += 500;
@@ -436,7 +441,7 @@ function buildFIFOQueue(txs, address, priceMap) {
   return { txGains, remainingCostBasis, remainingAmountSompi };
 }
 
-function renderReceipt(tx, price, showBack) {
+function renderReceipt(tx, price) {
   log('Rendering receipt for tx:', tx.transaction_id?.slice(0, 12), 'price:', price);
   receiptTx = { tx, price };
   receiptCard.classList.remove('hidden');
@@ -513,8 +518,6 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
-    <button class="card-btn card-btn-back" id="export-receipt-btn">Download CSV</button>
-
     <div class="receipt-ref">
       <span class="receipt-ref-label">Transaction ID</span>
       <div class="receipt-ref-hash">
@@ -523,7 +526,6 @@ function renderReceipt(tx, price, showBack) {
       </div>
     </div>
 
-    ${showBack ? '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button>' : ''}
   `;
 }
 
@@ -556,49 +558,90 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
   const remainingKas = remainingAmountSompi ? getKasAmount(remainingAmountSompi) : 0;
   const showCostBasis = hasUsd && (remainingCostBasis > 0 || remainingAmountSompi > 0);
 
-  const costBasisRow = !loadingMore && showCostBasis
+  const costBasisRow = loadingMore && hasUsd
     ? `<div class="summary-divider"></div>
       <div class="summary-row summary-cost-basis">
         <span class="summary-label">Cost Basis</span>
         <div class="summary-values">
-          <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
+          <div class="summary-usd cost-basis-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
-    : '';
+    : showCostBasis
+      ? `<div class="summary-divider"></div>
+        <div class="summary-row summary-cost-basis">
+          <span class="summary-label">Cost Basis</span>
+          <div class="summary-values">
+            <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
+          </div>
+        </div>`
+      : '';
 
-  const avgPriceRow = !loadingMore && remainingKas > 0 && showCostBasis
+  const avgPriceRow = loadingMore && hasUsd
     ? `<div class="summary-row summary-avg-price">
         <span class="summary-label">Avg Buy Price</span>
         <div class="summary-values">
-          <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
+          <div class="summary-usd avg-price-value loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
-    : '';
+    : remainingKas > 0 && showCostBasis
+      ? `<div class="summary-row summary-avg-price">
+          <span class="summary-label">Avg Buy Price</span>
+          <div class="summary-values">
+            <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
+          </div>
+        </div>`
+      : '';
 
-  const currentValueRow = !loadingMore && currentPrice !== null && balance > 0
-    ? `<div class="summary-row summary-current-value">
+  const currentValueRow = loadingMore && balance > 0
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-current-value">
         <span class="summary-label">Current Value</span>
         <div class="summary-values">
-          <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
+          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
         </div>
       </div>`
-    : '';
+    : currentPrice !== null && balance > 0
+      ? `<div class="summary-divider"></div>
+        <div class="summary-row summary-current-value">
+          <span class="summary-label">Current Value</span>
+          <div class="summary-values">
+            <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
+          </div>
+        </div>`
+      : '';
 
-  const profitRow = !loadingMore && currentPrice !== null && balance > 0 && showCostBasis
-    ? (() => {
-        const currentValue = getKasAmount(balance) * currentPrice;
-        const profit = currentValue - remainingCostBasis;
-        const isProfit = profit >= 0;
-        return `<div class="summary-row summary-profit">
-            <span class="summary-label">Unrealized Profit</span>
-            <div class="summary-values">
-              <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
-            </div>
-          </div>`;
+  const profitRow = loadingMore && hasUsd && balance > 0
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-current-value">
+        <span class="summary-label">Profit / Loss</span>
+        <div class="summary-values">
+          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
+        </div>
+      </div>`
+    : currentPrice !== null && balance > 0 && showCostBasis
+      ? (() => {
+          const currentValue = getKasAmount(balance) * currentPrice;
+          const profit = currentValue - remainingCostBasis;
+          const isProfit = profit >= 0;
+          return `<div class="summary-divider"></div>
+            <div class="summary-row summary-profit">
+              <span class="summary-label">Unrealized Profit</span>
+              <div class="summary-values">
+                <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
+              </div>
+            </div>`;
       })()
     : '';
 
-  const realizedGainRow = !loadingMore && hasUsd
+  const realizedGainRow = loadingMore && hasUsd
+    ? `<div class="summary-divider"></div>
+      <div class="summary-row summary-profit">
+        <span class="summary-label">Realized Gain</span>
+        <div class="summary-values">
+          <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+        </div>
+      </div>`
+    : hasUsd
       ? (() => {
           let totalRealized = 0;
           for (const txId of Object.keys(txGains || {})) {
@@ -630,10 +673,10 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
         </div>
       </div>
       ${costBasisRow}
+      ${avgPriceRow}
       ${currentValueRow}
       ${profitRow}
       ${realizedGainRow}
-      ${avgPriceRow}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
@@ -811,7 +854,12 @@ function renderStatement() {
     `;
   });
 
-  const loadingNote = _loadingMore ? `<div class="tx-list-header">Loading ${formatNumber(txs.length)} of ${formatNumber(statement._totalTxCount)} transactions\u2026</div>` : '';
+  const loadingBanner = _loadingMore ? `
+    <div class="loading-more">
+      <span class="spinner"></span>
+      <span class="loading-more-text">Loading remaining pages\u2026</span>
+    </div>
+  ` : '';
 
   statementCard.innerHTML = `
     <div class="statement-header">
@@ -821,7 +869,6 @@ function renderStatement() {
         <button class="copy-btn" data-copy="${escapeHtml(address)}">Copy</button>
       </div>
       <div class="statement-balance">Balance: <strong>${formatKAS(balance)}</strong></div>
-      <button class="card-btn card-btn-back" id="export-csv-btn">Download CSV</button>
       ${summaryHtml}
     </div>
     <div class="tx-list">
@@ -829,13 +876,15 @@ function renderStatement() {
         <span>${_loadingMore ? `${formatNumber(txs.length)} of ${formatNumber(statement._totalTxCount)} transactions` : `${txs.length} transaction${txs.length !== 1 ? 's' : ''}`}</span>
       </div>
       ${txRows || '<div class="tx-empty">No transactions found in this date range.</div>'}
-      ${loadingNote}
+      ${loadingBanner}
     </div>
     ${_loadingMore ? `<div class="pagination"><button class="page-btn" disabled>&#171; Prev</button><span class="page-info">Page 1 of ${Math.ceil(statement._totalTxCount / PAGE_SIZE)}</span><button class="page-btn" disabled>Next &#187;</button></div>` : buildPagination(page, totalPages)}
   `;
 
   receiptCard.classList.add('hidden');
   statementCard.classList.remove('hidden');
+  $('actions-bar').innerHTML = '<button class="card-btn card-btn-back" id="export-csv-btn">Download CSV</button>';
+  $('actions-bar').classList.remove('hidden');
 }
 
 function goToPage(page) {
@@ -856,7 +905,9 @@ async function showTxDetail(txId) {
     const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
     statementCard.classList.add('hidden');
     receiptCard.classList.remove('hidden');
-    renderReceipt(tx, price, true);
+    renderReceipt(tx, price);
+    $('actions-bar').innerHTML = '<button class="card-btn card-btn-back" id="back-btn">&#8592; Back to Statement</button><button class="card-btn card-btn-back" id="export-receipt-btn">Download CSV</button>';
+    $('actions-bar').classList.remove('hidden');
   } catch (err) {
     error('showTxDetail error:', err.message);
     showError(err.message);
@@ -890,6 +941,7 @@ function resetForm() {
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
   statementCard.classList.add('hidden');
+  $('actions-bar').classList.add('hidden');
   receiptTx = null;
   statement = null;
   hideError();
@@ -927,6 +979,8 @@ async function handleGenerate() {
       const tx = await fetchTransaction(raw);
       const price = priceMap ? priceMap[getDateKey(tx.block_time)] : null;
       renderReceipt(tx, price);
+      $('actions-bar').innerHTML = '<button class="card-btn card-btn-back" id="export-receipt-btn">Download CSV</button>';
+      $('actions-bar').classList.remove('hidden');
     } else if (ADDRESS_REGEX.test(raw)) {
       log('Input matched address pattern');
       statement = null;
@@ -994,8 +1048,27 @@ function initEventListeners() {
 
   receiptCard.addEventListener('click', (e) => {
     const copyBtn = e.target.closest('.copy-btn');
+    if (copyBtn && copyBtn.dataset.copy) { log('Copy clicked:', copyBtn.dataset.copy.slice(0, 12)); copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
+  });
+
+  statementCard.addEventListener('click', (e) => {
+    const copyBtn = e.target.closest('.copy-btn');
     if (copyBtn && copyBtn.dataset.copy) { copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
 
+    const row = e.target.closest('.tx-row');
+    if (row && row.dataset.txId) { log('Tx row clicked:', row.dataset.txId); showTxDetail(row.dataset.txId); return; }
+
+    const pageBtn = e.target.closest('.page-btn');
+    if (pageBtn && !pageBtn.disabled && pageBtn.dataset.page !== undefined) {
+      const page = parseInt(pageBtn.dataset.page);
+      log('Page button clicked:', page);
+      goToPage(page);
+      return;
+    }
+
+  });
+
+  $('actions-bar').addEventListener('click', (e) => {
     if (e.target.closest('#back-btn') && statement) {
       log('Back to statement clicked');
       renderStatement();
@@ -1008,27 +1081,10 @@ function initEventListeners() {
       exportReceiptCSV();
       return;
     }
-  });
-
-  statementCard.addEventListener('click', (e) => {
-    const copyBtn = e.target.closest('.copy-btn');
-    if (copyBtn && copyBtn.dataset.copy) { copyToClipboard(copyBtn.dataset.copy, copyBtn); return; }
 
     if (e.target.closest('#export-csv-btn')) {
       log('Export CSV clicked');
       exportCSV();
-      return;
-    }
-
-    const row = e.target.closest('.tx-row');
-    if (row && row.dataset.txId) { log('Tx row clicked:', row.dataset.txId); showTxDetail(row.dataset.txId); return; }
-
-    const pageBtn = e.target.closest('.page-btn');
-    if (pageBtn && !pageBtn.disabled && pageBtn.dataset.page !== undefined) {
-      const page = parseInt(pageBtn.dataset.page);
-      log('Page button clicked:', page);
-      goToPage(page);
-      return;
     }
   });
 }

@@ -11,7 +11,6 @@
     <div class="header">
       <div class="logo">𐤊</div>
       <h1>Kaspa Statement</h1>
-
     </div>
 
     <div class="input-section">
@@ -23,12 +22,16 @@
 
     <div id="loading" class="loading hidden">
       <div class="spinner"></div>
-      <div id="progress-track" class="progress-track hidden">
-        <div id="progress-fill" class="progress-fill"></div>
+      <div class="progress-bar-container hidden" id="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
       </div>
     </div>
 
     <div id="error" class="error hidden" role="alert"></div>
+
+    <div id="actions-bar" class="actions-bar hidden">
+      <button class="card-btn card-btn-back" id="export-csv-btn">Download CSV</button>
+    </div>
 
     <div id="result" class="hidden">
       <div class="receipt-card" id="receipt-card"></div>
