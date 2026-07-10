@@ -800,6 +800,8 @@ function buildPagination(current, total) {
 
   html += `<button class="page-btn" data-page="${current + 1}" ${current >= total - 1 ? 'disabled' : ''} aria-label="Next">${ICONS.chevronRight}</button>`;
 
+  html += `<span class="page-jump"><label for="page-jump-input">Go to</label><input type="number" id="page-jump-input" class="page-jump-input" min="1" max="${total}" value="${current + 1}" aria-label="Page number"><button class="page-btn page-jump-btn" data-jump>Go</button></span>`;
+
   html += '</div>';
   return html;
 }
@@ -889,6 +891,13 @@ function goToPage(page) {
   log('Going to page:', page);
   statement.page = page;
   renderStatement();
+}
+
+function jumpToPageFromInput(input) {
+  if (!input) return;
+  const val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 1) return;
+  goToPage(val - 1);
 }
 
 async function showTxDetail(txId) {
@@ -1060,6 +1069,23 @@ function initEventListeners() {
       return;
     }
 
+    const jumpBtn = e.target.closest('.page-jump-btn');
+    if (jumpBtn) {
+      const input = jumpBtn.parentElement.querySelector('.page-jump-input');
+      jumpToPageFromInput(input);
+      return;
+    }
+
+  });
+
+  statementCard.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const input = e.target.closest('.page-jump-input');
+      if (input) {
+        jumpToPageFromInput(input);
+        return;
+      }
+    }
   });
 
   $('actions-bar').addEventListener('click', (e) => {
