@@ -509,7 +509,7 @@ function renderReceipt(tx, price) {
           <div class="output-row">
             <span class="output-address">
               ${shortenHash(o.script_public_key_address, 12)}
-              <button class="copy-btn" data-copy="${escapeHtml(o.script_public_key_address)}">Copy</button>
+              <button class="copy-btn" data-copy="${escapeHtml(o.script_public_key_address)}">${ICONS.copy}</button>
             </span>
             <span class="output-amount">${formatKAS(o.amount)}</span>
           </div>
@@ -529,7 +529,7 @@ function renderReceipt(tx, price) {
       <span class="receipt-ref-label">Transaction ID</span>
       <div class="receipt-ref-hash">
         ${shortenHash(tx.transaction_id, 12)}
-        <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">Copy</button>
+        <button class="copy-btn" data-copy="${escapeHtml(tx.transaction_id)}">${ICONS.copy}</button>
       </div>
     </div>
 
