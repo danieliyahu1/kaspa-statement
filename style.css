@@ -654,6 +654,16 @@ label {
   margin-bottom: 8px;
 }
 
+.summary-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #aeaeb2;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
 .summary-row {
   display: flex;
   justify-content: space-between;

@@ -565,108 +565,98 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
   const remainingKas = remainingAmountSompi ? getKasAmount(remainingAmountSompi) : 0;
   const showCostBasis = hasUsd && (remainingCostBasis > 0 || remainingAmountSompi > 0);
 
-  const costBasisRow = loadingMore && hasUsd
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-cost-basis">
+  let costBasisContent = '';
+  let avgPriceContent = '';
+  let pAndLContent = '';
+
+  if (loadingMore && hasUsd) {
+    costBasisContent = `<div class="summary-row summary-cost-basis">
+      <span class="summary-label">Cost Basis</span>
+      <div class="summary-values">
+        <div class="summary-usd cost-basis-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+      </div>
+    </div>`;
+    avgPriceContent = `<div class="summary-row summary-avg-price">
+      <span class="summary-label">Avg Buy Price</span>
+      <div class="summary-values">
+        <div class="summary-usd avg-price-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+      </div>
+    </div>`;
+    pAndLContent = `<div class="summary-row summary-current-value">
+      <span class="summary-label">Current Value</span>
+      <div class="summary-values">
+        <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
+      </div>
+    </div>
+    <div class="summary-row summary-profit">
+      <span class="summary-label">Profit / Loss</span>
+      <div class="summary-values">
+        <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+      </div>
+    </div>
+    <div class="summary-row summary-profit">
+      <span class="summary-label">Realized Gain</span>
+      <div class="summary-values">
+        <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+      </div>
+    </div>`;
+  } else {
+    if (showCostBasis) {
+      costBasisContent = `<div class="summary-row summary-cost-basis">
         <span class="summary-label">Cost Basis</span>
         <div class="summary-values">
-          <div class="summary-usd cost-basis-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
         </div>
-      </div>`
-    : showCostBasis
-      ? `<div class="summary-divider"></div>
-        <div class="summary-row summary-cost-basis">
-          <span class="summary-label">Cost Basis</span>
-          <div class="summary-values">
-            <div class="summary-usd cost-basis-value">${formatUSD(remainingCostBasis)}</div>
-          </div>
-        </div>`
-      : '';
-
-  const avgPriceRow = loadingMore && hasUsd
-    ? `<div class="summary-row summary-avg-price">
+      </div>`;
+    }
+    if (remainingKas > 0 && showCostBasis) {
+      avgPriceContent = `<div class="summary-row summary-avg-price">
         <span class="summary-label">Avg Buy Price</span>
         <div class="summary-values">
-          <div class="summary-usd avg-price-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
         </div>
-      </div>`
-    : remainingKas > 0 && showCostBasis
-      ? `<div class="summary-row summary-avg-price">
-          <span class="summary-label">Avg Buy Price</span>
-          <div class="summary-values">
-            <div class="summary-usd avg-price-value">${formatUSD(remainingCostBasis / remainingKas)} per KAS</div>
-          </div>
-        </div>`
-      : '';
-
-  const currentValueRow = loadingMore && balance > 0
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-current-value">
+      </div>`;
+    }
+    if (currentPrice !== null && balance > 0) {
+      pAndLContent += `<div class="summary-row summary-current-value">
         <span class="summary-label">Current Value</span>
         <div class="summary-values">
-          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
         </div>
-      </div>`
-    : currentPrice !== null && balance > 0
-      ? `<div class="summary-divider"></div>
-        <div class="summary-row summary-current-value">
-          <span class="summary-label">Current Value</span>
-          <div class="summary-values">
-            <div class="summary-usd current-value-amount">${formatUSD(getKasAmount(balance) * currentPrice)}</div>
-          </div>
-        </div>`
-      : '';
-
-  const profitRow = loadingMore && hasUsd && balance > 0
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-current-value">
-        <span class="summary-label">Profit / Loss</span>
+      </div>`;
+    }
+    if (currentPrice !== null && balance > 0 && showCostBasis) {
+      const currentValue = getKasAmount(balance) * currentPrice;
+      const profit = currentValue - remainingCostBasis;
+      const isProfit = profit >= 0;
+      pAndLContent += `<div class="summary-row summary-profit">
+        <span class="summary-label">Unrealized Profit</span>
         <div class="summary-values">
-          <div class="summary-usd current-value-amount loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
         </div>
-      </div>`
-    : currentPrice !== null && balance > 0 && showCostBasis
-      ? (() => {
-          const currentValue = getKasAmount(balance) * currentPrice;
-          const profit = currentValue - remainingCostBasis;
-          const isProfit = profit >= 0;
-          return `<div class="summary-divider"></div>
-            <div class="summary-row summary-profit">
-              <span class="summary-label">Unrealized Profit</span>
-              <div class="summary-values">
-                <div class="summary-usd profit-value">${isProfit ? '+' : ''}${formatUSD(profit)}</div>
-              </div>
-            </div>`;
-      })()
-    : '';
-
-  const realizedGainRow = loadingMore && hasUsd
-    ? `<div class="summary-divider"></div>
-      <div class="summary-row summary-profit">
-        <span class="summary-label">Realized Gain</span>
+      </div>`;
+    }
+    if (hasUsd) {
+      let totalRealized = 0;
+      for (const txId of Object.keys(txGains || {})) {
+        totalRealized += txGains[txId].gain;
+      }
+      pAndLContent += `<div class="summary-row summary-profit">
+        <span class="summary-label">Realized Profit</span>
         <div class="summary-values">
-          <div class="summary-usd profit-value loading-placeholder"><span class="placeholder-spinner"></span></div>
+          <div class="summary-usd profit-value">${totalRealized >= 0 ? '+' : ''}${formatUSD(totalRealized)}</div>
         </div>
-      </div>`
-    : hasUsd
-      ? (() => {
-          let totalRealized = 0;
-          for (const txId of Object.keys(txGains || {})) {
-            totalRealized += txGains[txId].gain;
-          }
-          return `<div class="summary-divider"></div>
-            <div class="summary-row summary-profit">
-              <span class="summary-label">Realized Profit</span>
-              <div class="summary-values">
-                <div class="summary-usd profit-value">${totalRealized >= 0 ? '+' : ''}${formatUSD(totalRealized)}</div>
-              </div>
-            </div>`;
-        })()
-      : '';
+      </div>`;
+    }
+  }
+
+  const hasCostGroup = costBasisContent || avgPriceContent;
+  const hasPandL = pAndLContent.length > 0;
 
   return `
     <div class="net-summary">
       <div class="summary-title">Summary</div>
+      <div class="summary-group-label">Activity</div>
       <div class="summary-row">
         <span class="summary-label">Received</span>
         <div class="summary-values">
@@ -679,11 +669,11 @@ function renderProfitSummary(txs, address, txGains, fifoSummary, balance, loadin
           <div class="summary-kas">${formatKAS(sentSompi)}</div>
         </div>
       </div>
-      ${costBasisRow}
-      ${avgPriceRow}
-      ${currentValueRow}
-      ${profitRow}
-      ${realizedGainRow}
+      ${hasCostGroup ? '<div class="summary-divider"></div><div class="summary-group-label">Cost Basis</div>' : ''}
+      ${costBasisContent}
+      ${avgPriceContent}
+      ${hasPandL ? '<div class="summary-divider"></div><div class="summary-group-label">Profit &amp; Loss</div>' : ''}
+      ${pAndLContent}
       ${hadMissingPrice ? `<div class="summary-note">Some prices estimated prior to ${formatShortDate(priceMap._earliest)}</div>` : ''}
     </div>
   `;
