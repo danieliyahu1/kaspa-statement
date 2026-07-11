@@ -342,7 +342,7 @@ describe('showTxDetail', () => {
   it('shows error on fetch failure', async () => {
     fetch.mockRejectedValueOnce(new Error('Network error'));
     await showTxDetail('a'.repeat(64));
-    expect(document.getElementById('error').textContent).toContain('Network error');
+    expect(document.getElementById('error').textContent).toContain('Failed to fetch');
   });
 });
 

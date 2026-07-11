@@ -2,6 +2,7 @@ const API_BASE = 'https://api.kaspa.org';
 const TX_HASH_REGEX = /^[a-f0-9]{64}$/;
 const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
 const PAGE_SIZE = 50;
+const BATCH_SIZE = 38; // concurrent fetches per round → ~25 req/s (each request takes ~1.5s)
 const BYBIT_BASE = 'https://api.bybit.com';
 
 function log(...args) {
@@ -142,7 +143,7 @@ function resetProgress() {
   if (bar) bar.style.width = '0%';
 }
 
-async function fetchTransaction(txId) {
+async function fetchTransaction(txId, retries = 3) {
   log('Fetching transaction:', txId);
   const params = new URLSearchParams({
     inputs: 'true',
@@ -151,16 +152,33 @@ async function fetchTransaction(txId) {
   });
   const url = `${API_BASE}/transactions/${txId}?${params}`;
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    error('Transaction fetch failed:', res.status, res.statusText);
-    if (res.status === 404) throw new Error('Transaction not found. Check the hash and try again.');
-    if (res.status === 422) throw new Error('Invalid transaction hash format.');
-    throw new Error('The Kaspa network is currently unavailable. Please try again.');
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res) throw new Error('Failed to fetch transaction.');
+      if (!res.ok) {
+        error('Transaction fetch failed:', res.status, res.statusText);
+        if (res.status === 404) throw new Error('Transaction not found. Check the hash and try again.');
+        if (res.status === 422) throw new Error('Invalid transaction hash format.');
+        throw new Error('The Kaspa network is currently unavailable. Please try again.');
+      }
+      const data = await res.json();
+      log('Transaction fetched:', txId, 'accepted:', data.is_accepted, 'time:', data.block_time);
+      return data;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      const isNetworkError = err.message === 'Failed to fetch transaction.'
+        || err.message === 'Failed to fetch'
+        || err.message === 'Network error';
+      if (isNetworkError) {
+        const delay = attempt * 1000;
+        log('Retrying tx fetch in', delay, 'ms (attempt', attempt, 'of', retries, '):', err.message);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
   }
-  const data = await res.json();
-  log('Transaction fetched:', txId, 'accepted:', data.is_accepted, 'time:', data.block_time);
-  return data;
 }
 
 async function fetchAddressBalance(address) {
@@ -340,29 +358,26 @@ async function fetchAllTxsFromGenesis(address, onPage) {
   if (onPage) onPage([...allTxs], pageNum, totalPages, total);
 
   if (nextBefore) {
-    const promises = [];
     let done = 0;
-    let offset = 500;
-    while (offset < total) {
-      const off = offset;
-      promises.push(
-        fetchAddressTxsOffset(address, off, 500)
-          .catch(err => {
-            error('Parallel fetch failed at offset', off, err.message);
-            return [];
-          })
-          .then(txs => {
-            done++;
-            showProgress(pageNum + done, totalPages);
-            return txs;
-          })
+    const offsets = [];
+    for (let o = 500; o < total; o += 500) offsets.push(o);
+
+    for (let i = 0; i < offsets.length; i += BATCH_SIZE) {
+      const batch = offsets.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(off =>
+          fetchAddressTxsOffset(address, off, 500)
+            .catch(err => {
+              error('Parallel fetch failed at offset', off, err.message);
+              return [];
+            })
+        )
       );
-      offset += 500;
-    }
-    const results = await Promise.all(promises);
-    await new Promise(r => setTimeout(r, 0));
-    for (const txs of results) {
-      allTxs.push(...txs);
+      done += results.length;
+      showProgress(pageNum + done, totalPages);
+      for (const txs of results) {
+        allTxs.push(...txs);
+      }
     }
   }
 
