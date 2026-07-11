@@ -197,17 +197,6 @@ label {
   margin-bottom: 16px;
 }
 
-.warning {
-  background: #2a2418;
-  border: 1px solid #6b5a20;
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-size: 14px;
-  color: #ffc107;
-  line-height: 1.5;
-  margin-bottom: 16px;
-}
-
 .hidden {
   display: none !important;
 }

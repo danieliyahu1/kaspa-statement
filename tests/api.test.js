@@ -305,7 +305,6 @@ describe('fetchAllTxsFromGenesis adaptive batch', () => {
 
   beforeEach(() => {
     globalThis.fetch = vi.fn();
-    document.getElementById('warning').classList.add('hidden');
     showLoading(false);
   });
 
@@ -339,7 +338,6 @@ describe('fetchAllTxsFromGenesis adaptive batch', () => {
 
     const txs = await fetchAllTxsFromGenesis(address);
     expect(txs.length).toBe(5000);
-    expect(document.getElementById('warning').classList.contains('hidden')).toBe(true);
   });
 
   it('retries failed offsets at reduced batch size', async () => {
@@ -385,10 +383,9 @@ describe('fetchAllTxsFromGenesis adaptive batch', () => {
 
     const txs = await fetchAllTxsFromGenesis(address);
     expect(txs.length).toBe(3000);
-    expect(document.getElementById('warning').classList.contains('hidden')).toBe(true);
   });
 
-  it('shows warning when offset fails after MAX_RETRIES', async () => {
+  it('retries indefinitely until all pages succeed', async () => {
     fetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ total: 1500 }),
@@ -401,20 +398,22 @@ describe('fetchAllTxsFromGenesis adaptive batch', () => {
       headers: { get: (name) => name === 'X-Next-Page-Before' ? '1780000000000' : null },
     });
 
-    // offset 500 fails all times
-    fetch.mockRejectedValue(new Error('Rate limited'));
-
-    // offset 1000 succeeds
+    // offset 1000 fails 3 times, succeeds on 4th
+    fetch.mockRejectedValueOnce(new Error('Rate limited'));
+    fetch.mockRejectedValueOnce(new Error('Rate limited'));
+    fetch.mockRejectedValueOnce(new Error('Rate limited'));
     fetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve(Array.from({ length: 500 }, (_, i) => makeTx(`p1000_${i}`))),
+      json: () => Promise.resolve(Array.from({ length: 500 }, (_, i) => makeTx(`p1000_4th_${i}`))),
+    });
+    // offset 500 succeeds
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(Array.from({ length: 500 }, (_, i) => makeTx(`p500_${i}`))),
     });
 
     const txs = await fetchAllTxsFromGenesis(address);
-    // First page (500) + offset 1000 (500) = 1000. offset 500 fails permanently = data missing
-    expect(txs.length).toBe(1000);
-    expect(document.getElementById('warning').classList.contains('hidden')).toBe(false);
-    expect(document.getElementById('warning').textContent).toContain('temporarily unavailable');
+    expect(txs.length).toBe(1500);
   });
 
   it('returns only first page when no nextBefore header', async () => {
@@ -432,6 +431,5 @@ describe('fetchAllTxsFromGenesis adaptive batch', () => {
 
     const txs = await fetchAllTxsFromGenesis(address);
     expect(txs.length).toBe(500);
-    expect(document.getElementById('warning').classList.contains('hidden')).toBe(true);
   });
 });

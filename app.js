@@ -5,7 +5,6 @@ const PAGE_SIZE = 50;
 const ADAPTIVE_INITIAL_BATCH = 20;
 const ADAPTIVE_MAX_BATCH = 20;
 const ADAPTIVE_MIN_BATCH = 1;
-const MAX_RETRIES = 3;
 const BYBIT_BASE = 'https://api.bybit.com';
 
 const debugLog = [];
@@ -84,18 +83,6 @@ function showError(message) {
 
 function hideError() {
   errorEl.classList.add('hidden');
-}
-
-const warningEl = $('warning');
-
-function showWarning(message) {
-  warn('Showing warning:', message);
-  warningEl.textContent = message;
-  warningEl.classList.remove('hidden');
-}
-
-function hideWarning() {
-  warningEl.classList.add('hidden');
 }
 
 function formatDate(epochMs) {
@@ -400,8 +387,6 @@ async function fetchAllTxsFromGenesis(address, onPage) {
 
     let pending = [...offsets];
     let batchSize = ADAPTIVE_INITIAL_BATCH;
-    const retryCounts = {};
-    let anyGaveUp = false;
 
     while (pending.length > 0) {
       const batch = pending.splice(0, batchSize);
@@ -425,14 +410,8 @@ async function fetchAllTxsFromGenesis(address, onPage) {
           allTxs.push(...r.txs);
           succeeded.push(r.offset);
         } else {
-          retryCounts[r.offset] = (retryCounts[r.offset] || 0) + 1;
-          log('[DEBUG] retry count for offset', r.offset, ':', retryCounts[r.offset]);
-          if (retryCounts[r.offset] >= MAX_RETRIES) {
-            log('[DEBUG] giving up on offset', r.offset, 'after', MAX_RETRIES, 'attempts');
-            anyGaveUp = true;
-          } else {
-            failed.push(r.offset);
-          }
+          log('[DEBUG] offset', r.offset, 'will be retried');
+          failed.push(r.offset);
         }
       }
 
@@ -450,11 +429,7 @@ async function fetchAllTxsFromGenesis(address, onPage) {
       }
     }
 
-    log('[DEBUG] adaptive fetch complete — total offsets:', offsets.length, 'resolved:', done, 'gave up:', anyGaveUp);
-
-    if (anyGaveUp) {
-      showWarning('Some transaction data is temporarily unavailable. Your statement shows partial results. Please try again in a few minutes for complete data.');
-    }
+    log('[DEBUG] adaptive fetch complete — total offsets:', offsets.length, 'resolved:', done);
   }
 
   allTxs.reverse();
@@ -1039,14 +1014,12 @@ function resetForm() {
   receiptTx = null;
   statement = null;
   hideError();
-  hideWarning();
 }
 
 async function handleGenerate() {
   const raw = input.value.trim().toLowerCase();
   log('handleGenerate triggered with input:', raw);
   hideError();
-  hideWarning();
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
   statementCard.classList.add('hidden');
