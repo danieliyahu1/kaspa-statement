@@ -8,15 +8,36 @@ const ADAPTIVE_MIN_BATCH = 1;
 const MAX_RETRIES = 3;
 const BYBIT_BASE = 'https://api.bybit.com';
 
+const debugLog = [];
+const MAX_DEBUG_LOG = 500;
+
+function debugEntry(level, args) {
+  const entry = { level, timestamp: Date.now(), args: args.map(a => a instanceof Error ? { message: a.message, stack: a.stack } : a) };
+  debugLog.push(entry);
+  if (debugLog.length > MAX_DEBUG_LOG) debugLog.shift();
+}
+
+function dumpDebugLog() {
+  console.group('[Kaspa Statement] Debug Log');
+  debugLog.forEach(e => {
+    const time = new Date(e.timestamp).toISOString().slice(11, 23);
+    console.log(`[${time}] [${e.level}]`, ...e.args);
+  });
+  console.groupEnd();
+}
+
 function log(...args) {
+  debugEntry('log', args);
   console.log('[Kaspa Statement]', ...args);
 }
 
 function warn(...args) {
+  debugEntry('warn', args);
   console.warn('[Kaspa Statement]', ...args);
 }
 
 function error(...args) {
+  debugEntry('error', args);
   console.error('[Kaspa Statement]', ...args);
 }
 
@@ -1181,6 +1202,31 @@ function initEventListeners() {
   });
 }
 
+function initGlobalErrorHandler() {
+  window.onerror = (msg, source, line, col, err) => {
+    const detail = err && err.stack ? err.stack : `${msg} (${source}:${line}:${col})`;
+    error('Uncaught exception:', detail);
+    dumpDebugLog();
+    const el = $('error');
+    if (el) {
+      el.textContent = `An unexpected error occurred. Please try again. (${msg})`;
+      el.classList.remove('hidden');
+    }
+  };
+
+  window.onunhandledrejection = (e) => {
+    const reason = e.reason;
+    const detail = reason && reason.stack ? reason.stack : String(reason);
+    error('Unhandled promise rejection:', detail);
+    dumpDebugLog();
+    const el = $('error');
+    if (el) {
+      el.textContent = `An unexpected error occurred. Please try again. (${reason?.message || reason})`;
+      el.classList.remove('hidden');
+    }
+  };
+}
+
 log('App starting...');
 priceMapPromise = fetchPriceMap().then(map => {
   log('Price map initialization complete. Available:', !!map);
@@ -1194,5 +1240,6 @@ currentPricePromise = fetchCurrentPrice().then(price => {
   refreshUSD();
   return price;
 });
+initGlobalErrorHandler();
 initEventListeners();
 log('App initialized.');
