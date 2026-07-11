@@ -2,7 +2,10 @@ const API_BASE = 'https://api.kaspa.org';
 const TX_HASH_REGEX = /^[a-f0-9]{64}$/;
 const ADDRESS_REGEX = /^kaspa:[a-z0-9]{61,63}$/;
 const PAGE_SIZE = 50;
-const BATCH_SIZE = 38; // concurrent fetches per round → ~25 req/s (each request takes ~1.5s)
+const ADAPTIVE_INITIAL_BATCH = 20;
+const ADAPTIVE_MAX_BATCH = 20;
+const ADAPTIVE_MIN_BATCH = 1;
+const MAX_RETRIES = 3;
 const BYBIT_BASE = 'https://api.bybit.com';
 
 function log(...args) {
@@ -60,6 +63,18 @@ function showError(message) {
 
 function hideError() {
   errorEl.classList.add('hidden');
+}
+
+const warningEl = $('warning');
+
+function showWarning(message) {
+  warn('Showing warning:', message);
+  warningEl.textContent = message;
+  warningEl.classList.remove('hidden');
+}
+
+function hideWarning() {
+  warningEl.classList.add('hidden');
 }
 
 function formatDate(epochMs) {
@@ -362,22 +377,62 @@ async function fetchAllTxsFromGenesis(address, onPage) {
     const offsets = [];
     for (let o = 500; o < total; o += 500) offsets.push(o);
 
-    for (let i = 0; i < offsets.length; i += BATCH_SIZE) {
-      const batch = offsets.slice(i, i + BATCH_SIZE);
+    let pending = [...offsets];
+    let batchSize = ADAPTIVE_INITIAL_BATCH;
+    const retryCounts = {};
+    let anyGaveUp = false;
+
+    while (pending.length > 0) {
+      const batch = pending.splice(0, batchSize);
+      log('[DEBUG] batch round — size:', batchSize, 'pending:', pending.length + batch.length, 'fetching:', batch.length, 'offsets:', batch[0], '→', batch[batch.length - 1]);
       const results = await Promise.all(
         batch.map(off =>
           fetchAddressTxsOffset(address, off, 500)
+            .then(txs => ({ offset: off, txs, ok: true }))
             .catch(err => {
-              error('Parallel fetch failed at offset', off, err.message);
-              return [];
+              log('[DEBUG] fetch failed at offset', off, 'reason:', err.message);
+              return { offset: off, ok: false };
             })
         )
       );
-      done += results.length;
-      showProgress(pageNum + done, totalPages);
-      for (const txs of results) {
-        allTxs.push(...txs);
+
+      const succeeded = [];
+      const failed = [];
+
+      for (const r of results) {
+        if (r.ok) {
+          allTxs.push(...r.txs);
+          succeeded.push(r.offset);
+        } else {
+          retryCounts[r.offset] = (retryCounts[r.offset] || 0) + 1;
+          log('[DEBUG] retry count for offset', r.offset, ':', retryCounts[r.offset]);
+          if (retryCounts[r.offset] >= MAX_RETRIES) {
+            log('[DEBUG] giving up on offset', r.offset, 'after', MAX_RETRIES, 'attempts');
+            anyGaveUp = true;
+          } else {
+            failed.push(r.offset);
+          }
+        }
       }
+
+      done += succeeded.length;
+      showProgress(pageNum + done, totalPages);
+      log('[DEBUG] batch round done — succeeded:', succeeded.length, 'failed:', failed.length, 'batchSize now:', batchSize);
+
+      if (failed.length > 0) {
+        batchSize = Math.max(ADAPTIVE_MIN_BATCH, Math.floor(batchSize / 2));
+        log('[DEBUG] reducing batch size to', batchSize, 'due to', failed.length, 'failures');
+        pending = [...failed, ...pending];
+      } else {
+        batchSize = Math.min(ADAPTIVE_MAX_BATCH, batchSize + 2);
+        log('[DEBUG] increasing batch size to', batchSize);
+      }
+    }
+
+    log('[DEBUG] adaptive fetch complete — total offsets:', offsets.length, 'resolved:', done, 'gave up:', anyGaveUp);
+
+    if (anyGaveUp) {
+      showWarning('Some transaction data is temporarily unavailable. Your statement shows partial results. Please try again in a few minutes for complete data.');
     }
   }
 
@@ -963,12 +1018,14 @@ function resetForm() {
   receiptTx = null;
   statement = null;
   hideError();
+  hideWarning();
 }
 
 async function handleGenerate() {
   const raw = input.value.trim().toLowerCase();
   log('handleGenerate triggered with input:', raw);
   hideError();
+  hideWarning();
   resultEl.classList.add('hidden');
   receiptCard.classList.add('hidden');
   statementCard.classList.add('hidden');
