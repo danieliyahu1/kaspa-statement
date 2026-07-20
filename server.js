@@ -48,6 +48,10 @@ app.post('/api/web/receipt', async (req, res) => {
   }
 });
 
+app.get('/api/x402/statement', x402Middleware, (req, res) => {
+  res.json({ message: 'Send a POST request with {"address": "kaspa:..."} and a payment header' });
+});
+
 app.post('/api/x402/statement', x402Middleware, async (req, res) => {
   try {
     const { address } = req.body;
@@ -60,6 +64,10 @@ app.post('/api/x402/statement', x402Middleware, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/x402/receipt', x402Middleware, (req, res) => {
+  res.json({ message: 'Send a POST request with {"txid": "..."} and a payment header' });
 });
 
 app.post('/api/x402/receipt', x402Middleware, async (req, res) => {

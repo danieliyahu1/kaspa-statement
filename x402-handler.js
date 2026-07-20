@@ -47,15 +47,25 @@ export async function generateOffer({ payTo, amountSompi, network }) {
   });
 
   return {
-    k402: '0.2',
+    x402Version: 2,
+    resource: {
+      url: `${process.env.SERVICE_URL || 'http://localhost:3000'}/api/x402/statement`,
+      description: 'Kaspa Statement Generator',
+      serviceName: 'Kaspa Statement'
+    },
     accepts: [{
-      scheme: 'kaspa-utxo',
+      scheme: 'exact',
       network,
-      amount_sompi: String(amountSompi),
-      pay_to: payTo,
-      payment_id: paymentId,
-      expires,
-      description: 'Kaspa Statement'
+      amount: String(amountSompi),
+      asset: 'KAS',
+      payTo,
+      maxTimeoutSeconds: EXPIRY_SECONDS,
+      extra: {
+        binding: 'kaspa-exact-v2',
+        profile: 'standard-native',
+        paymentId,
+        description: 'Kaspa Statement'
+      }
     }]
   };
 }
@@ -133,18 +143,40 @@ export function getPriceSompi() {
   return parseInt(process.env.PRICE_SOMPI || '10000000', 10);
 }
 
+function stableStringify(obj) {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return `[${obj.map(stableStringify).join(',')}]`;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map(k => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+}
+
+function encodeBase64(str) {
+  return Buffer.from(str, 'utf8').toString('base64');
+}
+
+function decodeBase64(str) {
+  return Buffer.from(str, 'base64').toString('utf8');
+}
+
 async function sendOffer(res, reason) {
   const offer = await generateOffer({
     payTo: getPaymentAddress(),
     amountSompi: getPriceSompi(),
     network: getNetwork()
   });
-  if (reason) offer.reason = reason;
-  return res.status(402).set('Content-Type', 'application/json').json(offer);
+  if (reason) offer.error = reason;
+
+  const jsonStr = stableStringify(offer);
+  const b64 = encodeBase64(jsonStr);
+
+  return res
+    .status(402)
+    .set('Content-Type', 'application/json')
+    .set('PAYMENT-REQUIRED', b64)
+    .json(offer);
 }
 
 export function x402Middleware(req, res, next) {
-  // TEST ONLY: bypass payment verification. Remove for production.
   if (process.env.NODE_ENV !== 'production' && req.headers['x-test-bypass'] === 'bypass') {
     req.x402Payment = { scheme: 'test-bypass', txid: 'test', paymentId: 'test' };
     return next();
